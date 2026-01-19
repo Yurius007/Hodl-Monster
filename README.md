@@ -30,7 +30,7 @@ A lightweight web application for locking ERC20 tokens with a time-based release
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/Yurius007/Hodl-Monster.git
 cd hodl
 
 # Run the application (UV handles dependencies automatically)
@@ -41,7 +41,7 @@ uv run main.py
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/Yurius007/Hodl-Monster.git
 cd hodl
 
 # Create a virtual environment

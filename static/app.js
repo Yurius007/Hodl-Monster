@@ -23,6 +23,10 @@ async function loadConfig() {
         if (chainFooter) {
             chainFooter.textContent = `Chain: ${config.chainName} (${config.chainId})`;
         }
+        
+        if (config.testTokenAddress) {
+            await loadTestTokenInfo(config.testTokenAddress);
+        }
     } catch (error) {
         console.error('Failed to load config:', error);
         showTxStatus('Failed to load configuration', 'error');
@@ -38,6 +42,9 @@ function setupEventListeners() {
     
     document.getElementById('tokenAddress').addEventListener('blur', fetchTokenInfo);
     document.getElementById('tokenAddress').addEventListener('change', fetchTokenInfo);
+    document.getElementById('tokenAddress').addEventListener('input', resetApprovalState);
+    
+    document.getElementById('lockAmount').addEventListener('input', resetApprovalState);
     
     document.getElementById('useSelfBtn').addEventListener('click', () => {
         if (userAddress) {
@@ -51,6 +58,48 @@ function setupEventListeners() {
     document.getElementById('viewLocksBtn').addEventListener('click', viewLocks);
     
     document.getElementById('checkClaimableBtn').addEventListener('click', checkClaimable);
+    
+    document.getElementById('mintBtn').addEventListener('click', mintTestTokens);
+    
+    document.getElementById('copyAddressBtn').addEventListener('click', copyTestTokenAddress);
+}
+
+function resetApprovalState() {
+    const lockBtn = document.getElementById('lockBtn');
+    lockBtn.disabled = true;
+}
+
+async function loadTestTokenInfo(tokenAddress) {
+    try {
+        const response = await fetch(`/api/token-info/${tokenAddress}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('mintTokenSymbol').textContent = result.symbol;
+            document.getElementById('mintTokenName').textContent = result.name;
+            document.getElementById('mintTokenAddressDisplay').textContent = tokenAddress;
+            document.getElementById('mintTokenInfo').classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Failed to load test token info:', error);
+    }
+}
+
+function copyTestTokenAddress() {
+    const address = document.getElementById('mintTokenAddressDisplay').textContent;
+    navigator.clipboard.writeText(address).then(() => {
+        const btn = document.getElementById('copyAddressBtn');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        btn.style.color = 'var(--success)';
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.color = '';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showTxStatus('Failed to copy address', 'error');
+    });
 }
 
 async function checkWalletConnection() {
@@ -169,7 +218,11 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    document.getElementById(`${tabName}Tab`).classList.add('active');
+    const activeTabContent = document.getElementById(`${tabName}Tab`);
+    activeTabContent.classList.add('active');
+    
+    const tabs = document.querySelector('.tabs');
+    tabs.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function fetchTokenInfo() {
@@ -339,6 +392,8 @@ async function approveTokens(e) {
         
         showTxStatus('Tokens approved! You can now lock them.', 'success');
         
+        document.getElementById('lockBtn').disabled = false;
+        
     } catch (error) {
         console.error('Approval failed:', error);
         showTxStatus('Approval failed: ' + (error.message || error), 'error');
@@ -414,6 +469,7 @@ async function lockTokens(e) {
         showTxStatus('Tokens locked successfully!', 'success');
         
         document.getElementById('lockForm').reset();
+        document.getElementById('lockBtn').disabled = true;
         
     } catch (error) {
         console.error('Lock failed:', error);
@@ -683,6 +739,59 @@ function shortenAddress(address) {
 function formatDate(timestamp) {
     const date = new Date(timestamp * 1000);
     return date.toLocaleString();
+}
+
+async function mintTestTokens() {
+    if (!userAddress) {
+        alert('Please connect your wallet first');
+        return;
+    }
+    
+    const tokenAddress = document.getElementById('mintTokenAddressDisplay').textContent;
+    
+    if (!tokenAddress || tokenAddress === '0x...') {
+        alert('Test token address not configured');
+        return;
+    }
+    
+    try {
+        showTxStatus('Preparing mint transaction...');
+        
+        const response = await fetch('/api/encode/mint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: tokenAddress
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error);
+        }
+        
+        showTxStatus('Please confirm the transaction in your wallet...');
+        
+        const txHash = await window.ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [{
+                from: userAddress,
+                to: result.to,
+                data: result.data
+            }]
+        });
+        
+        showTxStatus('Transaction submitted! Waiting for confirmation...');
+        
+        await waitForTransaction(txHash);
+        
+        showTxStatus('Test tokens minted successfully! 🎉', 'success');
+        
+    } catch (error) {
+        console.error('Mint failed:', error);
+        showTxStatus('Mint failed: ' + (error.message || error), 'error');
+    }
 }
 
 window.claimLock = claimLock;

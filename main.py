@@ -44,6 +44,7 @@ def get_config():
         'chainId': chain_id,
         'chainName': config.get('chainName', f'Chain {chain_id}'),
         'contractAddress': config['deployment'],
+        'testTokenAddress': config.get('testerc20', ''),
         'rpc': config['rpc'],
         'blockExplorerUrl': block_explorer,
         'abi': abi
@@ -192,6 +193,27 @@ def encode_claim_tokens():
             'success': True,
             'data': tx_data,
             'to': contract_address
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/encode/mint', methods=['POST'])
+def encode_mint_tokens():
+    try:
+        data = request.json
+        token = Web3.to_checksum_address(data['token'])
+        
+        with open('ABIs/HODLMONSTERTOKEN_ABI.json', 'r') as f:
+            token_abi = json.load(f)
+        
+        token_contract = w3.eth.contract(address=token, abi=token_abi)
+        tx_data = token_contract.functions.mint()._encode_transaction_data()
+        
+        return jsonify({
+            'success': True,
+            'data': tx_data,
+            'to': token
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400

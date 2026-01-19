@@ -27,6 +27,7 @@
                 <button class="tab active" data-tab="lock">Lock Tokens</button>
                 <button class="tab" data-tab="view">View Locks</button>
                 <button class="tab" data-tab="claim">Claim Tokens</button>
+                <button class="tab" data-tab="mint">Mint Test Tokens</button>
             </div>
 
             <!-- Lock Tokens Tab -->
@@ -63,7 +64,7 @@
                     </div>
                     <div class="form-actions">
                         <button type="button" id="approveBtn" class="btn btn-secondary">1. Approve Tokens</button>
-                        <button type="submit" id="lockBtn" class="btn btn-primary">2. Lock Tokens</button>
+                        <button type="submit" id="lockBtn" class="btn btn-primary" disabled>2. Lock Tokens</button>
                     </div>
                 </form>
             </div>
@@ -94,6 +95,35 @@
                     <div id="claimableSummary" class="claimable-summary"></div>
                     <div id="claimableList" class="claimable-list"></div>
                 </div>
+            </div>
+
+            <!-- Mint Test Tokens Tab -->
+            <div id="mintTab" class="tab-content">
+                <div id="mintTokenInfo" class="mint-token-display hidden">
+                    <div class="mint-token-header">
+                        <div class="mint-token-details">
+                            <h3 id="mintTokenSymbol">TOKEN</h3>
+                            <p id="mintTokenName">Token Name</p>
+                        </div>
+                    </div>
+                    <div class="mint-address-container">
+                        <span class="mint-address-label">Contract Address</span>
+                        <div class="mint-address-box">
+                            <span id="mintTokenAddressDisplay">0x...</span>
+                            <button id="copyAddressBtn" class="copy-btn" title="Copy address">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mint-info">
+                    <p>Click the button below to mint test tokens to your wallet.</p>
+                    <p class="text-warning">⚠️ Only works with the deployed test token contract.</p>
+                </div>
+                <button id="mintBtn" class="btn btn-success">Mint Test Tokens</button>
             </div>
         </main>
 

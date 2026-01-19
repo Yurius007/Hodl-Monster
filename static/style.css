@@ -19,6 +19,10 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--background);
@@ -61,7 +65,7 @@ header {
 
 h1 {
     font-size: 2.5rem;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: var(--primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -507,6 +511,97 @@ footer a:hover {
 
 .text-warning {
     color: var(--warning);
+}
+
+/* Mint Tab */
+.mint-token-display {
+    background: var(--background);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+}
+
+.mint-token-display.hidden {
+    display: none;
+}
+
+.mint-token-header {
+    margin-bottom: 1.5rem;
+}
+
+.mint-token-details h3 {
+    font-size: 1.75rem;
+    color: var(--primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.mint-token-details p {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 1rem;
+}
+
+.mint-address-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mint-address-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.mint-address-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--surface);
+    padding: 0.875rem 1rem;
+    border-radius: 8px;
+    border: 2px solid var(--surface-light);
+}
+
+.mint-address-box #mintTokenAddressDisplay {
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: var(--text);
+    word-break: break-all;
+}
+
+.copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.copy-btn:hover {
+    background: var(--surface-light);
+    color: var(--primary);
+}
+
+.copy-btn svg {
+    display: block;
+}
+
+.mint-info {
+    background: var(--background);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+}
+
+.mint-info p {
+    margin: 0.5rem 0;
 }
 
 /* Responsive */

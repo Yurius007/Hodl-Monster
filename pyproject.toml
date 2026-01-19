@@ -1,0 +1,10 @@
+[project]
+name = "hodl"
+version = "0.1.0"
+description = "HodlMonster - Token Locker DApp"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "flask>=3.0.0",
+    "web3>=7.0.0",
+]

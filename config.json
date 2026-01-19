@@ -1,0 +1,6 @@
+{
+    "chain": 11155111,
+    "deployment": "0x2fffd91E32169F34e548359E506637EBAb8B8386",
+    "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+    "chainName": "Ethereum Sepolia Testnet"
+}

@@ -62,6 +62,8 @@ function setupEventListeners() {
     document.getElementById('mintBtn').addEventListener('click', mintTestTokens);
     
     document.getElementById('copyAddressBtn').addEventListener('click', copyTestTokenAddress);
+    
+    document.getElementById('switchNetworkBtn').addEventListener('click', switchNetwork);
 }
 
 function resetApprovalState() {
@@ -163,6 +165,7 @@ function updateWalletUI(chainId) {
     const walletInfo = document.getElementById('walletInfo');
     const walletAddress = document.getElementById('walletAddress');
     const networkName = document.getElementById('networkName');
+    const switchNetworkBtn = document.getElementById('switchNetworkBtn');
     
     walletInfo.classList.remove('hidden');
     walletAddress.textContent = shortenAddress(userAddress);
@@ -170,21 +173,26 @@ function updateWalletUI(chainId) {
     if (chainId === config.chainId) {
         networkName.textContent = config.chainName || `Chain ${config.chainId}`;
         networkName.classList.remove('wrong');
+        switchNetworkBtn.classList.add('hidden');
     } else {
         networkName.textContent = 'Wrong Network';
         networkName.classList.add('wrong');
+        switchNetworkBtn.classList.remove('hidden');
     }
 }
 
 async function switchNetwork() {
     try {
+        showTxStatus(`Switching to ${config.chainName}...`);
         await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: '0x' + config.chainId.toString(16) }],
         });
+        showTxStatus(`Switched to ${config.chainName}`, 'success');
     } catch (switchError) {
         if (switchError.code === 4902) {
             try {
+                showTxStatus(`Adding ${config.chainName} to wallet...`);
                 await window.ethereum.request({
                     method: 'wallet_addEthereumChain',
                     params: [{
@@ -199,9 +207,16 @@ async function switchNetwork() {
                         blockExplorerUrls: [config.blockExplorerUrl]
                     }],
                 });
+                showTxStatus(`${config.chainName} added and switched!`, 'success');
             } catch (addError) {
                 console.error('Failed to add network:', addError);
+                showTxStatus('Failed to add network: ' + (addError.message || 'User rejected'), 'error');
             }
+        } else if (switchError.code === 4001) {
+            showTxStatus('Network switch cancelled', 'error');
+        } else {
+            console.error('Failed to switch network:', switchError);
+            showTxStatus('Failed to switch network: ' + (switchError.message || 'Unknown error'), 'error');
         }
     }
 }
@@ -786,7 +801,7 @@ async function mintTestTokens() {
         
         await waitForTransaction(txHash);
         
-        showTxStatus('Test tokens minted successfully! 🎉', 'success');
+        showTxStatus('Test tokens minted successfully!', 'success');
         
     } catch (error) {
         console.error('Mint failed:', error);

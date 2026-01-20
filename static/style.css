@@ -110,6 +110,9 @@ h1 {
 .btn-small {
     padding: 0.5rem 1rem;
     font-size: 1rem;
+}
+
+.form-group .btn-small {
     margin-top: 0.5rem;
 }
 
@@ -138,8 +141,7 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 1rem;
 }
 
 .wallet-info.hidden {
@@ -149,18 +151,42 @@ h1 {
 #walletAddress {
     font-family: monospace;
     font-size: 0.9rem;
+    flex: 1;
 }
 
 .network-badge {
     background: var(--primary);
-    padding: 0.25rem 0.75rem;
+    padding: 0.4rem 0.9rem;
     border-radius: var(--border-radius);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .network-badge.wrong {
     background: var(--danger);
+}
+
+#switchNetworkBtn {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.9rem;
+    background: var(--primary);
+    color: white;
+    white-space: nowrap;
+    margin: 0;
+}
+
+#switchNetworkBtn:hover {
+    background: var(--primary-dark);
+}
+
+#useSelfBtn {
+    background: var(--surface-light);
+    color: var(--text);
+}
+
+#useSelfBtn:hover {
+    background: var(--surface);
 }
 
 /* Tabs */

@@ -31,7 +31,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone the repository
 git clone https://github.com/Yurius007/Hodl-Monster.git
-cd hodl
+cd Hodl-Monster
 
 # Run the application (UV handles dependencies automatically)
 uv run main.py
@@ -42,7 +42,7 @@ uv run main.py
 ```bash
 # Clone the repository
 git clone https://github.com/Yurius007/Hodl-Monster.git
-cd hodl
+cd Hodl-Monster
 
 # Create a virtual environment
 python -m venv .venv
@@ -51,7 +51,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 # OR
-pip install flask>=3.0.0 web3>=7.0.0
+pip install flask web3
 
 # Run the application
 python main.py

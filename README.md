@@ -45,16 +45,16 @@ git clone https://github.com/Yurius007/Hodl-Monster.git
 cd Hodl-Monster
 
 # Create a virtual environment
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install .
 # OR
 pip install flask web3
 
 # Run the application
-python main.py
+python3 main.py # On Windows: python main.py
 ```
 
 ## Configuration
@@ -167,6 +167,8 @@ HodlMonster works with any EVM-compatible chain. Popular options:
 - Arbitrum
 - Optimism
 - Avalanche
+
+This repository is currently configured to work with Base Sepolia
 
 ## Security Notice
 

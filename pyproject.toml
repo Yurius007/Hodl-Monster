@@ -1,5 +1,5 @@
 [project]
-name = "hodl"
+name = "Hodl-Monster"
 version = "0.1.0"
 description = "HodlMonster - Token Locker DApp"
 readme = "README.md"
@@ -8,3 +8,10 @@ dependencies = [
     "flask>=3.0.0",
     "web3>=7.0.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = []

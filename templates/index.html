@@ -14,7 +14,18 @@
                 <h1>Hodl Monster</h1>
                 <p class="tagline">Lock your tokens. Hodl with confidence.</p>
             </div>
-            <button id="connectBtn" class="btn btn-primary">Connect Wallet</button>
+            <div class="header-actions">
+                <div class="custom-dropdown" id="chainDropdown">
+                    <button type="button" class="custom-dropdown-toggle" id="chainSelector">
+                        <span class="custom-dropdown-text">Loading chains...</span>
+                        <svg class="custom-dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="custom-dropdown-menu" id="chainDropdownMenu"></div>
+                </div>
+                <button id="connectBtn" class="btn btn-primary">Connect Wallet</button>
+            </div>
         </header>
 
         <div id="walletInfo" class="wallet-info hidden">
@@ -48,14 +59,22 @@
                         <label for="lockPeriod">Lock Period</label>
                         <div class="input-group">
                             <input type="number" id="lockPeriodValue" placeholder="30" required>
-                            <select id="lockPeriodUnit">
-                                <option value="60">Minutes</option>
-                                <option value="3600">Hours</option>
-                                <option value="86400" selected>Days</option>
-                                <option value="604800">Weeks</option>
-                                <option value="2592000">Months (30d)</option>
-                                <option value="31536000">Years</option>
-                            </select>
+                            <div class="custom-dropdown" id="periodDropdown">
+                                <button type="button" class="custom-dropdown-toggle" id="lockPeriodUnit" data-value="86400">
+                                    <span class="custom-dropdown-text">Days</span>
+                                    <svg class="custom-dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="custom-dropdown-menu" id="periodDropdownMenu">
+                                    <div class="custom-dropdown-item" data-value="60">Minutes</div>
+                                    <div class="custom-dropdown-item" data-value="3600">Hours</div>
+                                    <div class="custom-dropdown-item active" data-value="86400">Days</div>
+                                    <div class="custom-dropdown-item" data-value="604800">Weeks</div>
+                                    <div class="custom-dropdown-item" data-value="2592000">Months (30d)</div>
+                                    <div class="custom-dropdown-item" data-value="31536000">Years</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="form-group">

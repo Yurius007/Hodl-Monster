@@ -3,21 +3,65 @@ let userAddress = null;
 let provider = null;
 let signer = null;
 let currentTokenInfo = null;
+let currentChain = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const pathParts = window.location.pathname.split('/').filter(p => p);
+    currentChain = pathParts[0] || 'base';
+    
+    await loadAvailableChains();
     await loadConfig();
     setupEventListeners();
     checkWalletConnection();
 });
 
+async function loadAvailableChains() {
+    try {
+        const response = await fetch('/api/chains');
+        const result = await response.json();
+        
+        if (result.success && result.chains.length > 0) {
+            const menu = document.getElementById('chainDropdownMenu');
+            const toggle = document.getElementById('chainSelector');
+            menu.innerHTML = '';
+            
+            result.chains.forEach(chain => {
+                const item = document.createElement('div');
+                item.className = 'custom-dropdown-item';
+                if (chain.route === currentChain) {
+                    item.classList.add('active');
+                    toggle.querySelector('.custom-dropdown-text').textContent = chain.chainName;
+                }
+                item.textContent = chain.chainName;
+                item.dataset.value = chain.route;
+                
+                item.addEventListener('click', () => {
+                    if (chain.route !== currentChain) {
+                        window.location.href = `/${chain.route}`;
+                    }
+                });
+                
+                menu.appendChild(item);
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load available chains:', error);
+    }
+}
+
 async function loadConfig() {
     try {
-        const response = await fetch('/api/config');
+        const response = await fetch(`/api/${currentChain}/config`);
         config = await response.json();
         
         const contractLink = document.getElementById('contractLink');
-        contractLink.href = `${config.blockExplorerUrl}/address/${config.contractAddress}`;
-        contractLink.textContent = shortenAddress(config.contractAddress);
+        if (config.contractAddress) {
+            contractLink.href = `${config.blockExplorerUrl}/address/${config.contractAddress}`;
+            contractLink.textContent = shortenAddress(config.contractAddress);
+        } else {
+            contractLink.textContent = 'Not deployed';
+            contractLink.href = '#';
+        }
         
         const chainFooter = document.getElementById('chainFooter');
         if (chainFooter) {
@@ -35,6 +79,8 @@ async function loadConfig() {
 
 function setupEventListeners() {
     document.getElementById('connectBtn').addEventListener('click', connectWallet);
+    
+    setupCustomDropdowns();
     
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
@@ -66,6 +112,48 @@ function setupEventListeners() {
     document.getElementById('switchNetworkBtn').addEventListener('click', switchNetwork);
 }
 
+function setupCustomDropdowns() {
+    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+        const toggle = dropdown.querySelector('.custom-dropdown-toggle');
+        const menu = dropdown.querySelector('.custom-dropdown-menu');
+        
+        if (!toggle || !menu) return;
+        
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.contains('open');
+            
+            document.querySelectorAll('.custom-dropdown.open').forEach(d => {
+                d.classList.remove('open');
+            });
+            
+            if (!isOpen) {
+                dropdown.classList.add('open');
+            }
+        });
+        
+        menu.querySelectorAll('.custom-dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                menu.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                toggle.querySelector('.custom-dropdown-text').textContent = item.textContent;
+                toggle.dataset.value = item.dataset.value;
+                
+                dropdown.classList.remove('open');
+            });
+        });
+    });
+    
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown.open').forEach(d => {
+            d.classList.remove('open');
+        });
+    });
+}
+
 function resetApprovalState() {
     const lockBtn = document.getElementById('lockBtn');
     lockBtn.disabled = true;
@@ -73,7 +161,7 @@ function resetApprovalState() {
 
 async function loadTestTokenInfo(tokenAddress) {
     try {
-        const response = await fetch(`/api/token-info/${tokenAddress}`);
+        const response = await fetch(`/api/${currentChain}/token-info/${tokenAddress}`);
         const result = await response.json();
         
         if (result.success) {
@@ -253,7 +341,7 @@ async function fetchTokenInfo() {
     }
     
     try {
-        const response = await fetch(`/api/token-info/${tokenAddress}`);
+        const response = await fetch(`/api/${currentChain}/token-info/${tokenAddress}`);
         const result = await response.json();
         
         if (!result.success) {
@@ -290,7 +378,7 @@ async function fetchTokenBalance(tokenAddress) {
     const balanceInfoDiv = document.getElementById('balanceInfo');
     
     try {
-        const response = await fetch(`/api/token-balance/${tokenAddress}/${userAddress}`);
+        const response = await fetch(`/api/${currentChain}/token-balance/${tokenAddress}/${userAddress}`);
         const result = await response.json();
         
         if (!result.success) {
@@ -375,7 +463,7 @@ async function approveTokens(e) {
         
         showTxStatus('Preparing approval...');
         
-        const response = await fetch('/api/encode/approve', {
+        const response = await fetch(`/api/${currentChain}/encode/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -426,7 +514,7 @@ async function lockTokens(e) {
     const tokenAddress = document.getElementById('tokenAddress').value;
     const humanAmount = document.getElementById('lockAmount').value;
     const periodValue = parseInt(document.getElementById('lockPeriodValue').value);
-    const periodUnit = parseInt(document.getElementById('lockPeriodUnit').value);
+    const periodUnit = parseInt(document.getElementById('lockPeriodUnit').dataset.value);
     const beneficiary = document.getElementById('beneficiary').value || userAddress;
     
     if (!tokenAddress || !humanAmount) {
@@ -449,7 +537,7 @@ async function lockTokens(e) {
     try {
         showTxStatus('Preparing lock transaction...');
         
-        const response = await fetch('/api/encode/lock', {
+        const response = await fetch(`/api/${currentChain}/encode/lock`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -506,14 +594,14 @@ async function viewLocks() {
     }
     
     try {
-        const tokenInfoResponse = await fetch(`/api/token-info/${tokenAddress}`);
+        const tokenInfoResponse = await fetch(`/api/${currentChain}/token-info/${tokenAddress}`);
         const tokenInfo = await tokenInfoResponse.json();
         
         if (!tokenInfo.success) {
             throw new Error('Failed to load token info');
         }
         
-        const response = await fetch(`/api/locks/${userAddress}/${tokenAddress}`);
+        const response = await fetch(`/api/${currentChain}/locks/${userAddress}/${tokenAddress}`);
         const result = await response.json();
         
         if (!result.success) {
@@ -586,7 +674,9 @@ function displayLocks(locks, tokenAddress, tokenInfo) {
     }).join('');
 }
 
-async function checkClaimable(providedTokenAddress = null) {
+async function checkClaimable(e = null) {
+    const providedTokenAddress = (e && typeof e === 'string') ? e : null;
+    
     if (!userAddress) {
         alert('Please connect your wallet first');
         return;
@@ -600,14 +690,14 @@ async function checkClaimable(providedTokenAddress = null) {
     }
     
     try {
-        const tokenInfoResponse = await fetch(`/api/token-info/${tokenAddress}`);
+        const tokenInfoResponse = await fetch(`/api/${currentChain}/token-info/${tokenAddress}`);
         const tokenInfo = await tokenInfoResponse.json();
         
         if (!tokenInfo.success) {
             throw new Error('Failed to load token info');
         }
         
-        const response = await fetch(`/api/available/${userAddress}/${tokenAddress}`);
+        const response = await fetch(`/api/${currentChain}/available/${userAddress}/${tokenAddress}`);
         const result = await response.json();
         
         if (!result.success) {
@@ -662,7 +752,7 @@ async function claimLock(tokenAddress, lockIndex) {
     try {
         showTxStatus('Preparing claim transaction...');
         
-        const response = await fetch('/api/encode/claim', {
+        const response = await fetch(`/api/${currentChain}/encode/claim`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -772,7 +862,7 @@ async function mintTestTokens() {
     try {
         showTxStatus('Preparing mint transaction...');
         
-        const response = await fetch('/api/encode/mint', {
+        const response = await fetch(`/api/${currentChain}/encode/mint`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

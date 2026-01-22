@@ -5,18 +5,16 @@ A lightweight web application for locking ERC20 tokens with a time-based release
 ## Features
 
 - **Token Locking**: Lock any ERC20 token for a custom period
-- **MetaMask Integration**: Seamless wallet connection
-- **Multi-Chain Support**: Works with any EVM-compatible chain
+- **Multi-Chain Support**: Switch between different chains via dropdown selector
 - **Lock Management**: View all your locks and their status (newest first)
 - **Easy Claims**: Claim tokens when unlock period expires
 - **Test Token Minting**: Mint test tokens directly from the UI
 - **Copy Addresses**: One-click copy for token addresses
-- **Clean UI**: Dark theme with smooth scrolling navigation
 
 ## Prerequisites
 
 - Python 3.10 or higher
-- MetaMask or another Web3 wallet
+- MetaMask, Rabby or another Web3 wallet
 - ERC20 tokens to lock
 
 ## Installation & Setup
@@ -63,20 +61,30 @@ Edit `config.json` to configure the blockchain network and contract:
 
 ```json
 {
-    "chain": 84532,
-    "deployment": "0x2fffd91E32169F34e548359E506637EBAb8B8386",
-    "testerc20": "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC",
-    "rpc": "https://base-sepolia-rpc.publicnode.com",
-    "chainName": "Base Sepolia Testnet"
+   "default": "base-sepolia",
+   "chains": {
+      "base-sepolia": {
+         "route": "base-sepolia",
+         "chainId": 84532,
+         "chainName": "Base Sepolia Testnet",
+         "deployment": "0x2fffd91E32169F34e548359E506637EBAb8B8386",
+         "testerc20": "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC",
+         "rpc": "https://base-sepolia-rpc.publicnode.com",
+         "blockExplorerUrl": "https://sepolia.basescan.org"
+      }
+   }
 }
 ```
 
 **Parameters:**
-- `chain`: Chain ID (e.g., 1 for Ethereum Mainnet, 84532 for Base Sepolia)
+- `default`: The default chain to use on startup
+- `route`: Internal route identifier for the chain
+- `chainId`: Chain ID (e.g., 1 for Ethereum Mainnet, 84532 for Base Sepolia)
+- `chainName`: Display name for the network
 - `deployment`: Your deployed HodlMonster contract address
 - `testerc20`: (Optional) Test token address for minting functionality
 - `rpc`: RPC endpoint URL
-- `chainName`: Display name for the network
+- `blockExplorerUrl`: Block explorer URL for transaction verification
 
 ## Usage
 
@@ -84,14 +92,18 @@ Edit `config.json` to configure the blockchain network and contract:
    ```bash
    uv run main.py
    ```
-   The app will be available at `http://localhost:5000`
+   The app will be available at `http://localhost:5000` and will redirect to the default chain (e.g., `/base-sepolia`)
 
-2. **Connect your wallet:**
+2. **Select your chain:**
+   - Use the chain dropdown in the header to switch between available chains
+   - Only chains with deployed contracts will appear in the selector
+
+3. **Connect your wallet:**
    - Click "Connect Wallet" button
    - Approve the connection in MetaMask
-   - Switch to the configured network if needed
+   - If on wrong network, click "Switch Network" button to change
 
-3. **Mint test tokens (optional):**
+4. **Mint test tokens (optional):**
    - Go to "Mint Test Tokens" tab
    - View token name, symbol, and address
    - Click copy icon to copy token address
@@ -101,7 +113,7 @@ Edit `config.json` to configure the blockchain network and contract:
    - Go to "Lock Tokens" tab
    - Enter the ERC20 token address (auto-loads token info)
    - Enter the amount to lock (use MAX button for full balance)
-   - Select lock period (minutes, hours, days, weeks, months, years)
+   - Select lock period from dropdown (minutes, hours, days, weeks, months, years)
    - Optionally specify a beneficiary address (or click "Use My Address")
    - Click "1. Approve Tokens" and confirm in wallet
    - Click "2. Lock Tokens" and confirm in wallet
@@ -140,15 +152,18 @@ hodl/
 
 ## API Endpoints
 
-- `GET /api/config` - Get network configuration (includes test token address)
-- `GET /api/token-info/<token>` - Get ERC20 token information
-- `GET /api/token-balance/<token>/<user>` - Get user's token balance
-- `GET /api/locks/<user>/<token>` - Get user's locks for a token
-- `GET /api/available/<user>/<token>` - Get claimable tokens
-- `POST /api/encode/approve` - Encode approval transaction
-- `POST /api/encode/lock` - Encode lock transaction
-- `POST /api/encode/claim` - Encode claim transaction
-- `POST /api/encode/mint` - Encode mint transaction for test tokens
+- `GET /` - Redirects to default chain route
+- `GET /<chain_route>` - Main page for specific chain
+- `GET /api/chains` - Get list of available chains (with deployments only)
+- `GET /api/<chain_route>/config` - Get chain configuration
+- `GET /api/<chain_route>/token-info/<token>` - Get ERC20 token information
+- `GET /api/<chain_route>/token-balance/<token>/<user>` - Get user's token balance
+- `GET /api/<chain_route>/locks/<user>/<token>` - Get user's locks for a token
+- `GET /api/<chain_route>/available/<user>/<token>` - Get claimable tokens
+- `POST /api/<chain_route>/encode/approve` - Encode approval transaction
+- `POST /api/<chain_route>/encode/lock` - Encode lock transaction
+- `POST /api/<chain_route>/encode/claim` - Encode claim transaction
+- `POST /api/<chain_route>/encode/mint` - Encode mint transaction for test tokens
 
 ## Development
 
@@ -159,16 +174,11 @@ The application uses:
 
 ## Supported Networks
 
-HodlMonster works with any EVM-compatible chain. Popular options:
-- Ethereum (Mainnet, Sepolia, Goerli)
-- Base (Mainnet, Base Sepolia)
-- Polygon
-- BSC (Binance Smart Chain)
-- Arbitrum
-- Optimism
-- Avalanche
+HodlMonster works with any EVM-compatible chain.
 
-This repository is currently configured to work with Base Sepolia
+This repository is currently configured to work with:
+- **Base Sepolia**
+- **Ethereum Sepolia**
 
 ## Security Notice
 

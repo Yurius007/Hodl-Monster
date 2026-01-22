@@ -137,7 +137,9 @@ hodl/
 ├── main.py              # Flask backend server
 ├── config.json          # Network configuration
 ├── pyproject.toml       # Python dependencies
-├── HodlMonster.sol      # Smart contract source
+├── contracts
+│   ├── HodlMonster.sol       # Smart contract source
+│   └── monstercoin.sol       # Test ERC20 Smart contract source
 ├── ABIs/
 │   ├── ERC20_ABI.json              # Standard ERC20 ABI
 │   ├── HODLMONSTER_ABI.json        # HodlMonster contract ABI

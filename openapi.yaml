@@ -1,0 +1,676 @@
+openapi: 3.0.3
+info:
+  title: Hodl Monster API
+  description: API for managing token locks on various blockchain networks
+  version: 1.0.0
+  contact:
+    name: Hodl Monster Team
+
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+  - url: /
+    description: Relative URLs (recommended for Swagger UI)
+
+tags:
+  - name: Chains
+    description: Chain configuration and information
+  - name: Tokens
+    description: Token information and balances
+  - name: Locks
+    description: Token lock management
+  - name: Transactions
+    description: Transaction encoding endpoints
+
+paths:
+  /api/chains:
+    get:
+      summary: Get available chains
+      description: Returns a list of all available blockchain networks with valid deployments
+      tags:
+        - Chains
+      responses:
+        '200':
+          description: Successfully retrieved available chains
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  chains:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                          example: "base-sepolia"
+                        route:
+                          type: string
+                          example: "base-sepolia"
+                        chainId:
+                          type: integer
+                          example: 84532
+                        chainName:
+                          type: string
+                          example: "Base Sepolia Testnet"
+
+  /api/{chain}/config:
+    get:
+      summary: Get chain configuration
+      description: Returns configuration details for a specific blockchain network
+      tags:
+        - Chains
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+      responses:
+        '200':
+          description: Successfully retrieved chain configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chainId:
+                    type: integer
+                    example: 84532
+                  chainName:
+                    type: string
+                    example: "Base Sepolia Testnet"
+                  contractAddress:
+                    type: string
+                    example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
+                  testTokenAddress:
+                    type: string
+                    example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+                  rpc:
+                    type: string
+                    example: "https://base-sepolia-rpc.publicnode.com"
+                  blockExplorerUrl:
+                    type: string
+                    example: "https://sepolia.basescan.org"
+                  abi:
+                    type: array
+                    items:
+                      type: object
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/token-info/{token}:
+    get:
+      summary: Get token information
+      description: Returns information about a specific ERC20 token including symbol, name, and decimals
+      tags:
+        - Tokens
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+        - name: token
+          in: path
+          required: true
+          description: Token contract address
+          schema:
+            type: string
+            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+      responses:
+        '200':
+          description: Successfully retrieved token information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  symbol:
+                    type: string
+                    example: "USDT"
+                  decimals:
+                    type: integer
+                    example: 18
+                  name:
+                    type: string
+                    example: "Tether USD"
+        '400':
+          description: Invalid token address or contract error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/token-balance/{token}/{address}:
+    get:
+      summary: Get token balance
+      description: Returns the token balance for a specific address
+      tags:
+        - Tokens
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+        - name: token
+          in: path
+          required: true
+          description: Token contract address
+          schema:
+            type: string
+            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+        - name: address
+          in: path
+          required: true
+          description: User wallet address
+          schema:
+            type: string
+            example: "0x0000000000000000000000000000000000000000"
+      responses:
+        '200':
+          description: Successfully retrieved token balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  balance:
+                    type: string
+                    example: "1000000000000000000"
+        '400':
+          description: Invalid address or token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/locks/{address}/{token}:
+    get:
+      summary: Get user locks
+      description: Returns all token locks for a specific user and token
+      tags:
+        - Locks
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+        - name: address
+          in: path
+          required: true
+          description: User wallet address
+          schema:
+            type: string
+            example: "0x0000000000000000000000000000000000000000"
+        - name: token
+          in: path
+          required: true
+          description: Token contract address
+          schema:
+            type: string
+            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+      responses:
+        '200':
+          description: Successfully retrieved user locks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  locks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        index:
+                          type: integer
+                          example: 0
+                        amount:
+                          type: string
+                          example: "1000000000000000000"
+                        unlockTime:
+                          type: integer
+                          example: 1735689600
+                        token:
+                          type: string
+                          example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+        '400':
+          description: Contract not deployed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/available/{address}/{token}:
+    get:
+      summary: Get available tokens
+      description: Returns the total amount of claimable tokens and their lock indexes
+      tags:
+        - Locks
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+        - name: address
+          in: path
+          required: true
+          description: User wallet address
+          schema:
+            type: string
+            example: "0x0000000000000000000000000000000000000000"
+        - name: token
+          in: path
+          required: true
+          description: Token contract address
+          schema:
+            type: string
+            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+      responses:
+        '200':
+          description: Successfully retrieved available tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: string
+                    example: "5000000000000000000"
+                  claimableIndexes:
+                    type: array
+                    items:
+                      type: integer
+                    example: [0, 2, 5]
+        '400':
+          description: Contract not deployed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/total-locked/{address}/{token}:
+    get:
+      summary: Get total locked tokens
+      description: Returns the total amount of locked tokens for a user
+      tags:
+        - Locks
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+        - name: address
+          in: path
+          required: true
+          description: User wallet address
+          schema:
+            type: string
+            example: "0x0000000000000000000000000000000000000000"
+        - name: token
+          in: path
+          required: true
+          description: Token contract address
+          schema:
+            type: string
+            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+      responses:
+        '200':
+          description: Successfully retrieved total locked tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: string
+                    example: "10000000000000000000"
+        '400':
+          description: Contract not deployed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/encode/approve:
+    post:
+      summary: Encode approve transaction
+      description: Generates encoded transaction data for approving token spending
+      tags:
+        - Transactions
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - amount
+              properties:
+                token:
+                  type: string
+                  description: Token contract address
+                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+                amount:
+                  type: string
+                  description: Amount to approve (in wei)
+                  example: "1000000000000000000"
+      responses:
+        '200':
+          description: Successfully encoded approve transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: string
+                    description: Encoded transaction data
+                    example: "0x095ea7b3..."
+                  to:
+                    type: string
+                    description: Target contract address
+                    example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+        '400':
+          description: Invalid parameters or encoding error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/encode/lock:
+    post:
+      summary: Encode lock tokens transaction
+      description: Generates encoded transaction data for locking tokens
+      tags:
+        - Transactions
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - amount
+                - lockPeriod
+                - beneficiary
+              properties:
+                token:
+                  type: string
+                  description: Token contract address
+                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+                amount:
+                  type: string
+                  description: Amount to lock (in wei)
+                  example: "1000000000000000000"
+                lockPeriod:
+                  type: integer
+                  description: Lock period in seconds
+                  example: 2592000
+                beneficiary:
+                  type: string
+                  description: Beneficiary wallet address
+                  example: "0x0000000000000000000000000000000000000000"
+      responses:
+        '200':
+          description: Successfully encoded lock transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: string
+                    description: Encoded transaction data
+                    example: "0x1a2b3c4d..."
+                  to:
+                    type: string
+                    description: Target contract address
+                    example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
+        '400':
+          description: Contract not deployed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/encode/claim:
+    post:
+      summary: Encode claim tokens transaction
+      description: Generates encoded transaction data for claiming unlocked tokens
+      tags:
+        - Transactions
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - lockIndex
+              properties:
+                token:
+                  type: string
+                  description: Token contract address
+                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+                lockIndex:
+                  type: integer
+                  description: Index of the lock to claim
+                  example: 0
+      responses:
+        '200':
+          description: Successfully encoded claim transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: string
+                    description: Encoded transaction data
+                    example: "0x5e6f7a8b..."
+                  to:
+                    type: string
+                    description: Target contract address
+                    example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
+        '400':
+          description: Contract not deployed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/encode/mint:
+    post:
+      summary: Encode mint tokens transaction
+      description: Generates encoded transaction data for minting test tokens
+      tags:
+        - Transactions
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: Token contract address
+                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+      responses:
+        '200':
+          description: Successfully encoded mint transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: string
+                    description: Encoded transaction data
+                    example: "0x1249c58b"
+                  to:
+                    type: string
+                    description: Target contract address
+                    example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+        '400':
+          description: Invalid parameters or encoding error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Error message"

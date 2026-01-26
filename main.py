@@ -1,9 +1,31 @@
 from flask import Flask, render_template, jsonify, request, redirect
+from flask_cors import CORS
+from flask_swagger_ui import get_swaggerui_blueprint
 from web3 import Web3
 import json
 import os
+import yaml
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+
+CORS(app)
+
+# Swagger UI configuration
+SWAGGER_URL = '/api/docs'
+API_URL = '/api/openapi.json'
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        'app_name': "Hodl Monster API",
+        'validatorUrl': None,
+        'docExpansion': 'list',
+        'defaultModelsExpandDepth': -1
+    }
+)
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 with open('config.json', 'r') as f:
     config = json.load(f)
@@ -43,6 +65,15 @@ def index():
     default_chain = config['default']
     default_route = chains[default_chain]['config']['route']
     return redirect(f'/{default_route}')
+
+
+@app.route('/api/openapi.json')
+def serve_openapi_spec():
+    """Serve OpenAPI specification in JSON format"""
+    yaml_path = os.path.join(os.path.dirname(__file__), 'openapi.yaml')
+    with open(yaml_path, 'r') as f:
+        spec = yaml.safe_load(f)
+    return jsonify(spec)
 
 
 @app.route('/<chain_route>')

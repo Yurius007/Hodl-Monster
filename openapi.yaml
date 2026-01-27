@@ -220,7 +220,7 @@ paths:
 
   /api/{chain}/locks/{address}/{token}:
     get:
-      summary: Get user locks
+      summary: Get user locks for specific token
       description: Returns all token locks for a specific user and token
       tags:
         - Locks
@@ -274,6 +274,80 @@ paths:
                         token:
                           type: string
                           example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+        '400':
+          description: Contract not deployed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/all-locks/{address}:
+    get:
+      summary: Get all user locks
+      description: Returns all token locks for a user across all tokens
+      tags:
+        - Locks
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+        - name: address
+          in: path
+          required: true
+          description: User wallet address
+          schema:
+            type: string
+            example: "0x0000000000000000000000000000000000000000"
+      responses:
+        '200':
+          description: Successfully retrieved all user locks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  locks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                          example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+                        tokenSymbol:
+                          type: string
+                          example: "TEST"
+                        tokenName:
+                          type: string
+                          example: "Test Token"
+                        tokenDecimals:
+                          type: integer
+                          example: 18
+                        tokenIndex:
+                          type: integer
+                          example: 0
+                        amount:
+                          type: string
+                          example: "1000000000000000000"
+                        unlockTime:
+                          type: integer
+                          example: 1735689600
+                  tokenCount:
+                    type: integer
+                    example: 3
         '400':
           description: Contract not deployed or invalid parameters
           content:
@@ -527,6 +601,92 @@ paths:
                     type: string
                     description: Target contract address
                     example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
+        '400':
+          description: Contract not deployed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/{chain}/encode/batch-lock:
+    post:
+      summary: Encode batch lock tokens transaction
+      description: Generates encoded transaction data for locking multiple amounts with different lock periods in a single transaction (max 10 locks)
+      tags:
+        - Transactions
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          description: Chain route identifier
+          schema:
+            type: string
+            example: "base-sepolia"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - amounts
+                - lockPeriods
+                - beneficiary
+              properties:
+                token:
+                  type: string
+                  description: Token contract address
+                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+                amounts:
+                  type: array
+                  description: Array of token amounts to lock (in wei)
+                  items:
+                    type: string
+                  example: ["1000000000000000000", "2000000000000000000", "3000000000000000000"]
+                  minItems: 1
+                  maxItems: 10
+                lockPeriods:
+                  type: array
+                  description: Array of lock periods in seconds (must match amounts array length)
+                  items:
+                    type: integer
+                  example: [86400, 172800, 259200]
+                  minItems: 1
+                  maxItems: 10
+                beneficiary:
+                  type: string
+                  description: Beneficiary wallet address
+                  example: "0x0000000000000000000000000000000000000000"
+      responses:
+        '200':
+          description: Successfully encoded batch lock transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: string
+                    description: Encoded transaction data
+                    example: "0x1a2b3c4d..."
+                  to:
+                    type: string
+                    description: Target contract address
+                    example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
+                  totalAmount:
+                    type: string
+                    description: Total amount of tokens to be locked (sum of all amounts)
+                    example: "6000000000000000000"
         '400':
           description: Contract not deployed or invalid parameters
           content:

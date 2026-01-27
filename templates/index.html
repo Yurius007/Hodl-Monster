@@ -37,8 +37,8 @@
         <main>
             <div class="tabs">
                 <button class="tab active" data-tab="lock">Lock Tokens</button>
+                <button class="tab" data-tab="batch">Batch Lock</button>
                 <button class="tab" data-tab="view">View Locks</button>
-                <button class="tab" data-tab="claim">Claim Tokens</button>
                 <button class="tab" data-tab="mint">Mint Test Tokens</button>
             </div>
 
@@ -89,31 +89,77 @@
                 </form>
             </div>
 
+            <!-- Batch Lock Tokens Tab -->
+            <div id="batchTab" class="tab-content">
+                <form id="batchLockForm" class="form">
+                    <div class="form-group">
+                        <label for="batchBeneficiary">Beneficiary Address</label>
+                        <input type="text" id="batchBeneficiary" placeholder="0x...">
+                        <button type="button" id="batchUseSelfBtn" class="btn btn-small">Use My Address</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="batchLockPeriod">Lock Period (same for all tokens)</label>
+                        <div class="input-group">
+                            <input type="number" id="batchLockPeriodValue" placeholder="30" required>
+                            <div class="custom-dropdown" id="batchPeriodDropdown">
+                                <button type="button" class="custom-dropdown-toggle" id="batchLockPeriodUnit" data-value="86400">
+                                    <span class="custom-dropdown-text">Days</span>
+                                    <svg class="custom-dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="custom-dropdown-menu" id="batchPeriodDropdownMenu">
+                                    <div class="custom-dropdown-item" data-value="60">Minutes</div>
+                                    <div class="custom-dropdown-item" data-value="3600">Hours</div>
+                                    <div class="custom-dropdown-item active" data-value="86400">Days</div>
+                                    <div class="custom-dropdown-item" data-value="604800">Weeks</div>
+                                    <div class="custom-dropdown-item" data-value="2592000">Months (30d)</div>
+                                    <div class="custom-dropdown-item" data-value="31536000">Years</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-locks-section">
+                        <div class="section-header">
+                            <label>Tokens to Lock (1-10)</label>
+                            <button type="button" id="addBatchTokenBtn" class="btn btn-small">+ Add Token</button>
+                        </div>
+                        <div id="batchTokensContainer">
+                            <!-- Batch token entries will be added here -->
+                            <div class="batch-lock-entry" data-index="0">
+                                <div class="batch-lock-row">
+                                    <div class="batch-input-group">
+                                        <input type="text" class="batch-token-address" placeholder="Token Address (0x...)" required>
+                                        <div class="batch-token-info hidden"></div>
+                                    </div>
+                                    <div class="batch-input-group">
+                                        <input type="text" class="batch-amount" placeholder="Amount" required>
+                                        <div class="batch-balance hidden"></div>
+                                    </div>
+                                    <button type="button" class="btn-max" disabled>MAX</button>
+                                    <button type="button" class="btn-remove-batch" disabled>×</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="batchSummaryInfo" class="batch-total-info hidden">
+                            <strong>Total Tokens:</strong> <span id="batchTokenCount">1</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" id="batchApproveAllBtn" class="btn btn-secondary">1. Approve All Tokens</button>
+                        <button type="submit" id="batchLockBtn" class="btn btn-primary" disabled>2. Lock All Tokens</button>
+                    </div>
+                </form>
+            </div>
+
             <!-- View Locks Tab -->
             <div id="viewTab" class="tab-content">
-                <div class="form-group">
-                    <label for="viewTokenAddress">Token Address</label>
-                    <input type="text" id="viewTokenAddress" placeholder="0x...">
-                </div>
-                <button id="viewLocksBtn" class="btn btn-primary">View My Locks</button>
-                
                 <div id="locksContainer" class="locks-container">
                     <div id="locksSummary" class="locks-summary"></div>
                     <div id="locksList" class="locks-list"></div>
-                </div>
-            </div>
-
-            <!-- Claim Tokens Tab -->
-            <div id="claimTab" class="tab-content">
-                <div class="form-group">
-                    <label for="claimTokenAddress">Token Address</label>
-                    <input type="text" id="claimTokenAddress" placeholder="0x...">
-                </div>
-                <button id="checkClaimableBtn" class="btn btn-secondary">Check Claimable</button>
-                
-                <div id="claimableContainer" class="claimable-container">
-                    <div id="claimableSummary" class="claimable-summary"></div>
-                    <div id="claimableList" class="claimable-list"></div>
                 </div>
             </div>
 

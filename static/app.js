@@ -101,9 +101,24 @@ function setupEventListeners() {
     document.getElementById('approveBtn').addEventListener('click', approveTokens);
     document.getElementById('lockForm').addEventListener('submit', lockTokens);
     
-    document.getElementById('viewLocksBtn').addEventListener('click', viewLocks);
+    document.getElementById('batchUseSelfBtn').addEventListener('click', () => {
+        if (userAddress) {
+            document.getElementById('batchBeneficiary').value = userAddress;
+        }
+    });
     
-    document.getElementById('checkClaimableBtn').addEventListener('click', checkClaimable);
+    document.getElementById('addBatchTokenBtn').addEventListener('click', addBatchTokenEntry);
+    document.getElementById('batchTokensContainer').addEventListener('input', handleBatchTokenInput);
+    document.getElementById('batchTokensContainer').addEventListener('blur', handleBatchTokenBlur, true);
+    document.getElementById('batchTokensContainer').addEventListener('click', handleBatchTokenRemove);
+    
+    // Add MAX button listener for initial entry
+    document.querySelectorAll('.btn-max').forEach(btn => {
+        btn.addEventListener('click', handleMaxClick);
+    });
+    
+    document.getElementById('batchApproveAllBtn').addEventListener('click', batchApproveAllTokens);
+    document.getElementById('batchLockForm').addEventListener('submit', batchLockMultipleTokens);
     
     document.getElementById('mintBtn').addEventListener('click', mintTestTokens);
     
@@ -326,6 +341,11 @@ function switchTab(tabName) {
     
     const tabs = document.querySelector('.tabs');
     tabs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Auto-load locks when View Locks tab is opened
+    if (tabName === 'view' && userAddress) {
+        viewLocks();
+    }
 }
 
 async function fetchTokenInfo() {
@@ -580,184 +600,315 @@ async function lockTokens(e) {
     }
 }
 
-async function viewLocks() {
-    if (!userAddress) {
-        alert('Please connect your wallet first');
-        return;
-    }
-    
-    const tokenAddress = document.getElementById('viewTokenAddress').value;
-    
-    if (!tokenAddress) {
-        alert('Please enter a token address');
-        return;
-    }
-    
-    try {
-        const tokenInfoResponse = await fetch(`/api/${currentChain}/token-info/${tokenAddress}`);
-        const tokenInfo = await tokenInfoResponse.json();
-        
-        if (!tokenInfo.success) {
-            throw new Error('Failed to load token info');
-        }
-        
-        const response = await fetch(`/api/${currentChain}/locks/${userAddress}/${tokenAddress}`);
-        const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-        
-        displayLocks(result.locks, tokenAddress, tokenInfo);
-        
-    } catch (error) {
-        console.error('Failed to fetch locks:', error);
-        showTxStatus('Failed to fetch locks: ' + error.message, 'error');
-    }
-}
+// Batch Lock Functions
+let batchTokensInfo = {};
+let batchTokenCount = 1;
 
-function displayLocks(locks, tokenAddress, tokenInfo) {
-    const summary = document.getElementById('locksSummary');
-    const list = document.getElementById('locksList');
-    
-    if (locks.length === 0) {
-        summary.innerHTML = '<p>No locks found for this token</p>';
-        summary.classList.add('show');
-        list.innerHTML = '';
+function addBatchTokenEntry() {
+    if (batchTokenCount >= 10) {
+        alert('Maximum 10 tokens allowed per batch');
         return;
     }
     
-    let totalLocked = BigInt(0);
-    let claimableCount = 0;
-    const now = Math.floor(Date.now() / 1000);
-    
-    locks.forEach(lock => {
-        if (BigInt(lock.amount) > 0) {
-            totalLocked += BigInt(lock.amount);
-            if (now >= lock.unlockTime) claimableCount++;
-        }
-    });
-    
-    summary.innerHTML = `
-        <h3>Total Locks: ${locks.length}</h3>
-        <p>Total Locked: ${formatTokenAmount(totalLocked.toString(), tokenInfo.decimals)} ${tokenInfo.symbol}</p>
-        <p>Claimable: ${claimableCount}</p>
-    `;
-    summary.classList.add('show');
-    
-    list.innerHTML = locks.slice().reverse().map((lock, reversedIndex) => {
-        const index = locks.length - 1 - reversedIndex;
-        const isClaimable = now >= lock.unlockTime && BigInt(lock.amount) > 0;
-        const isClaimed = BigInt(lock.amount) === BigInt(0);
-        const status = isClaimed ? 'claimed' : (isClaimable ? 'claimable' : 'locked');
-        const statusText = isClaimed ? 'Claimed' : (isClaimable ? 'Claimable' : 'Locked');
-        
-        return `
-            <div class="lock-card ${status}">
-                <div class="lock-card-header">
-                    <span class="lock-index">Lock #${index}</span>
-                    <span class="lock-status ${status}">${statusText}</span>
-                </div>
-                <div class="lock-details">
-                    <div class="lock-detail">
-                        <span class="lock-detail-label">Amount</span>
-                        <span class="lock-detail-value">${formatTokenAmount(lock.amount, tokenInfo.decimals)} ${tokenInfo.symbol}</span>
-                    </div>
-                    <div class="lock-detail">
-                        <span class="lock-detail-label">Unlock Time</span>
-                        <span class="lock-detail-value">${formatDate(lock.unlockTime)}</span>
-                    </div>
-                </div>
-                ${isClaimable ? `<button class="btn btn-success" onclick="claimLock('${tokenAddress}', ${index})">Claim Tokens</button>` : ''}
+    batchTokenCount++;
+    const container = document.getElementById('batchTokensContainer');
+    const entry = document.createElement('div');
+    entry.className = 'batch-lock-entry';
+    entry.dataset.index = batchTokenCount - 1;
+    entry.innerHTML = `
+        <div class="batch-lock-row">
+            <div class="batch-input-group">
+                <input type="text" class="batch-token-address" placeholder="Token Address (0x...)" required>
+                <div class="batch-token-info hidden"></div>
             </div>
-        `;
-    }).join('');
-}
-
-async function checkClaimable(e = null) {
-    const providedTokenAddress = (e && typeof e === 'string') ? e : null;
-    
-    if (!userAddress) {
-        alert('Please connect your wallet first');
-        return;
-    }
-    
-    const tokenAddress = providedTokenAddress || document.getElementById('claimTokenAddress').value;
-    
-    if (!tokenAddress) {
-        alert('Please enter a token address');
-        return;
-    }
-    
-    try {
-        const tokenInfoResponse = await fetch(`/api/${currentChain}/token-info/${tokenAddress}`);
-        const tokenInfo = await tokenInfoResponse.json();
-        
-        if (!tokenInfo.success) {
-            throw new Error('Failed to load token info');
-        }
-        
-        const response = await fetch(`/api/${currentChain}/available/${userAddress}/${tokenAddress}`);
-        const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-        
-        displayClaimable(result, tokenAddress, tokenInfo);
-        
-    } catch (error) {
-        console.error('Failed to check claimable:', error);
-        showTxStatus('Failed to check claimable: ' + error.message, 'error');
-    }
-}
-
-function displayClaimable(data, tokenAddress, tokenInfo) {
-    const summary = document.getElementById('claimableSummary');
-    const list = document.getElementById('claimableList');
-    
-    if (data.claimableIndexes.length === 0) {
-        summary.innerHTML = '<p>No tokens available to claim</p>';
-        summary.classList.add('show');
-        list.innerHTML = '';
-        return;
-    }
-    
-    summary.innerHTML = `
-        <h3 class="text-success">Tokens Ready to Claim!</h3>
-        <p>Total Available: ${formatTokenAmount(data.total, tokenInfo.decimals)} ${tokenInfo.symbol}</p>
-        <p>Claimable Locks: ${data.claimableIndexes.length}</p>
-    `;
-    summary.classList.add('show');
-    
-    list.innerHTML = data.claimableIndexes.map(index => `
-        <div class="lock-card claimable">
-            <div class="lock-card-header">
-                <span class="lock-index">Lock #${index}</span>
-                <span class="lock-status claimable">Ready</span>
+            <div class="batch-input-group">
+                <input type="text" class="batch-amount" placeholder="Amount" required>
+                <div class="batch-balance hidden"></div>
             </div>
-            <button class="btn btn-success" onclick="claimLock('${tokenAddress}', ${index})">
-                Claim Lock #${index}
-            </button>
+            <button type="button" class="btn-max" disabled>MAX</button>
+            <button type="button" class="btn-remove-batch">×</button>
         </div>
-    `).join('');
+    `;
+    container.appendChild(entry);
+    
+    // Add event listener for MAX button
+    const maxBtn = entry.querySelector('.btn-max');
+    maxBtn.addEventListener('click', handleMaxClick);
+    
+    updateBatchRemoveButtons();
+    updateBatchSummary();
 }
 
-async function claimLock(tokenAddress, lockIndex) {
+function handleBatchTokenRemove(e) {
+    if (e.target.classList.contains('btn-remove-batch')) {
+        const entry = e.target.closest('.batch-lock-entry');
+        const tokenInput = entry.querySelector('.batch-token-address');
+        if (tokenInput && tokenInput.value) {
+            delete batchTokensInfo[tokenInput.value.toLowerCase()];
+        }
+        entry.remove();
+        batchTokenCount--;
+        updateBatchRemoveButtons();
+        updateBatchSummary();
+        resetBatchApprovalState();
+    }
+}
+
+function updateBatchRemoveButtons() {
+    const entries = document.querySelectorAll('.batch-lock-entry');
+    entries.forEach((entry, index) => {
+        const removeBtn = entry.querySelector('.btn-remove-batch');
+        removeBtn.disabled = entries.length === 1;
+    });
+}
+
+function handleBatchTokenInput(e) {
+    if (e.target.classList.contains('batch-token-address') || e.target.classList.contains('batch-amount')) {
+        resetBatchApprovalState();
+        updateBatchSummary();
+    }
+}
+
+function handleBatchTokenBlur(e) {
+    if (e.target.classList.contains('batch-token-address')) {
+        fetchBatchTokenInfo(e.target);
+    }
+}
+
+async function fetchBatchTokenInfo(inputElement) {
+    const tokenAddress = inputElement.value.trim();
+    const entry = inputElement.closest('.batch-lock-entry');
+    const infoDiv = entry.querySelector('.batch-token-info');
+    const balanceSpan = entry.querySelector('.batch-balance');
+    const maxBtn = entry.querySelector('.btn-max');
+    
+    if (!tokenAddress || tokenAddress.length !== 42) {
+        infoDiv.classList.add('hidden');
+        balanceSpan.classList.add('hidden');
+        maxBtn.disabled = true;
+        delete batchTokensInfo[tokenAddress.toLowerCase()];
+        return;
+    }
+    
+    // Check if already fetched
+    if (batchTokensInfo[tokenAddress.toLowerCase()]) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/${currentChain}/token-info/${tokenAddress}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Fetch balance if user is connected
+            if (userAddress) {
+                try {
+                    const balanceResponse = await fetch(`/api/${currentChain}/token-balance/${tokenAddress}/${userAddress}`);
+                    const balanceResult = await balanceResponse.json();
+                    
+                    if (balanceResult.success) {
+                        const balance = formatTokenAmount(balanceResult.balance, result.decimals);
+                        
+                        // Store balance for MAX button
+                        result.userBalance = balance;
+                        result.userBalanceRaw = balanceResult.balance;
+                        
+                        // Display balance
+                        balanceSpan.textContent = `${balance} ${result.symbol}`;
+                        balanceSpan.classList.remove('hidden');
+                        maxBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch balance:', error);
+                }
+            }
+            
+            batchTokensInfo[tokenAddress.toLowerCase()] = result;
+            infoDiv.innerHTML = `<strong>${result.symbol}</strong> - ${result.name}`;
+            infoDiv.classList.remove('hidden');
+        } else {
+            infoDiv.innerHTML = `<span style="color: var(--danger)">Invalid token</span>`;
+            infoDiv.classList.remove('hidden');
+            balanceSpan.classList.add('hidden');
+            maxBtn.disabled = true;
+        }
+    } catch (error) {
+        console.error('Failed to fetch token info:', error);
+        infoDiv.classList.add('hidden');
+        balanceSpan.classList.add('hidden');
+        maxBtn.disabled = true;
+        delete batchTokensInfo[tokenAddress.toLowerCase()];
+    }
+}
+
+function handleMaxClick(e) {
+    const entry = e.target.closest('.batch-lock-entry');
+    const tokenInput = entry.querySelector('.batch-token-address');
+    const amountInput = entry.querySelector('.batch-amount');
+    const tokenAddress = tokenInput.value.trim().toLowerCase();
+    
+    const tokenInfo = batchTokensInfo[tokenAddress];
+    if (tokenInfo && tokenInfo.userBalance) {
+        amountInput.value = tokenInfo.userBalance;
+        resetBatchApprovalState();
+    }
+}
+
+function resetBatchApprovalState() {
+    const lockBtn = document.getElementById('batchLockBtn');
+    lockBtn.disabled = true;
+}
+
+function updateBatchSummary() {
+    const entries = document.querySelectorAll('.batch-lock-entry');
+    document.getElementById('batchTokenCount').textContent = entries.length;
+    document.getElementById('batchSummaryInfo').classList.remove('hidden');
+}
+
+async function batchApproveAllTokens() {
     if (!userAddress) {
         alert('Please connect your wallet first');
         return;
     }
     
-    try {
-        showTxStatus('Preparing claim transaction...');
+    const entries = document.querySelectorAll('.batch-lock-entry');
+    const approvals = [];
+    
+    for (const entry of entries) {
+        const tokenAddress = entry.querySelector('.batch-token-address').value.trim();
+        const amountInput = entry.querySelector('.batch-amount').value;
         
-        const response = await fetch(`/api/${currentChain}/encode/claim`, {
+        if (!tokenAddress || !amountInput) {
+            alert('Please fill in all token addresses and amounts');
+            return;
+        }
+        
+        const tokenInfo = batchTokensInfo[tokenAddress.toLowerCase()];
+        if (!tokenInfo) {
+            alert(`Please enter a valid token address: ${tokenAddress}`);
+            return;
+        }
+        
+        try {
+            const amount = parseTokenAmount(amountInput, tokenInfo.decimals);
+            approvals.push({ tokenAddress, amount: amount.toString(), symbol: tokenInfo.symbol });
+        } catch (error) {
+            alert(`Invalid amount for ${tokenInfo.symbol}: ${amountInput}`);
+            return;
+        }
+    }
+    
+    if (approvals.length === 0) {
+        alert('No tokens to approve');
+        return;
+    }
+    
+    try {
+        showTxStatus(`Approving ${approvals.length} token(s)...`);
+        
+        for (let i = 0; i < approvals.length; i++) {
+            const approval = approvals[i];
+            showTxStatus(`Approving ${approval.symbol} (${i + 1}/${approvals.length})...`);
+            
+            const response = await fetch(`/api/${currentChain}/encode/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: approval.tokenAddress,
+                    amount: approval.amount
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+            
+            showTxStatus(`Please confirm ${approval.symbol} approval in your wallet...`);
+            
+            const txHash = await window.ethereum.request({
+                method: 'eth_sendTransaction',
+                params: [{
+                    from: userAddress,
+                    to: result.to,
+                    data: result.data
+                }]
+            });
+            
+            showTxStatus(`${approval.symbol} approval submitted! Waiting for confirmation...`);
+            await waitForTransaction(txHash);
+        }
+        
+        showTxStatus(`All ${approvals.length} token(s) approved! You can now lock them.`, 'success');
+        document.getElementById('batchLockBtn').disabled = false;
+        
+    } catch (error) {
+        console.error('Approval failed:', error);
+        showTxStatus('Approval failed: ' + (error.message || error), 'error');
+    }
+}
+
+async function batchLockMultipleTokens(e) {
+    e.preventDefault();
+    
+    if (!userAddress) {
+        alert('Please connect your wallet first');
+        return;
+    }
+    
+    const beneficiary = document.getElementById('batchBeneficiary').value || userAddress;
+    const periodValue = parseInt(document.getElementById('batchLockPeriodValue').value);
+    const periodUnit = parseInt(document.getElementById('batchLockPeriodUnit').dataset.value);
+    
+    if (!periodValue) {
+        alert('Please enter a lock period');
+        return;
+    }
+    
+    const lockPeriodSeconds = periodValue * periodUnit;
+    
+    // Collect all token entries
+    const entries = document.querySelectorAll('.batch-lock-entry');
+    const tokenAddresses = [];
+    const amounts = [];
+    
+    for (const entry of entries) {
+        const tokenAddress = entry.querySelector('.batch-token-address').value.trim();
+        const amountInput = entry.querySelector('.batch-amount').value;
+        
+        if (!tokenAddress || !amountInput) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        const tokenInfo = batchTokensInfo[tokenAddress.toLowerCase()];
+        if (!tokenInfo) {
+            alert('Please enter valid token addresses');
+            return;
+        }
+        
+        try {
+            const amount = parseTokenAmount(amountInput, tokenInfo.decimals);
+            tokenAddresses.push(tokenAddress);
+            amounts.push(amount.toString());
+        } catch (error) {
+            alert(`Invalid amount: ${amountInput}`);
+            return;
+        }
+    }
+    
+    try {
+        showTxStatus('Preparing multi-token lock transaction...');
+        
+        const response = await fetch(`/api/${currentChain}/encode/multi-token-lock`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                token: tokenAddress,
-                lockIndex: lockIndex
+                tokenAddresses: tokenAddresses,
+                amounts: amounts,
+                lockPeriod: lockPeriodSeconds,
+                beneficiary: beneficiary
             })
         });
         
@@ -782,9 +933,269 @@ async function claimLock(tokenAddress, lockIndex) {
         
         await waitForTransaction(txHash);
         
-        showTxStatus('Tokens claimed successfully! ', 'success');
+        showTxStatus(`${tokenAddresses.length} token(s) locked successfully in 1 lock!`, 'success');
         
-        checkClaimable(tokenAddress);
+        // Reset form
+        document.getElementById('batchLockForm').reset();
+        document.getElementById('batchLockBtn').disabled = true;
+        
+        // Reset to single entry
+        const container = document.getElementById('batchTokensContainer');
+        container.innerHTML = `
+            <div class="batch-lock-entry" data-index="0">
+                <div class="batch-lock-row">
+                    <div class="batch-input-group">
+                        <label>Token Address</label>
+                        <input type="text" class="batch-token-address" placeholder="0x..." required>
+                        <div class="batch-token-info hidden"></div>
+                    </div>
+                    <div class="batch-input-group">
+                        <label>Amount</label>
+                        <input type="text" class="batch-amount" placeholder="100" required>
+                    </div>
+                    <button type="button" class="btn-remove-batch" disabled>×</button>
+                </div>
+            </div>
+        `;
+        batchTokenCount = 1;
+        batchTokensInfo = {};
+        updateBatchSummary();
+        
+    } catch (error) {
+        console.error('Multi-token lock failed:', error);
+        showTxStatus('Multi-token lock failed: ' + (error.message || error), 'error');
+    }
+}
+
+async function viewLocks() {
+    if (!userAddress) {
+        alert('Please connect your wallet first');
+        return;
+    }
+    
+    // Show loading state
+    const summary = document.getElementById('locksSummary');
+    const list = document.getElementById('locksList');
+    summary.innerHTML = '<div class="spinner"></div><p>Loading your locks...</p>';
+    summary.classList.add('show');
+    list.innerHTML = '';
+    
+    try {
+        const response = await fetch(`/api/${currentChain}/all-locks/${userAddress}`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error);
+        }
+        
+        displayAllLocks(result.locks, result.tokenCount);
+        
+    } catch (error) {
+        console.error('Failed to fetch locks:', error);
+        summary.innerHTML = '<p class="error-text">Failed to fetch locks. Please try again.</p>';
+        showTxStatus('Failed to fetch locks: ' + error.message, 'error');
+    }
+}
+
+function displayAllLocks(locks, tokenCount) {
+    const summary = document.getElementById('locksSummary');
+    const list = document.getElementById('locksList');
+    
+    if (locks.length === 0) {
+        summary.innerHTML = '<p>No locks found for your address</p>';
+        summary.classList.add('show');
+        list.innerHTML = '';
+        return;
+    }
+    
+    const now = Math.floor(Date.now() / 1000);
+    let totalClaimable = 0;
+    
+    locks.forEach(lock => {
+        if (now >= lock.unlockTime && BigInt(lock.amount) > 0) totalClaimable++;
+    });
+    
+    summary.innerHTML = `
+        <h3>Total Locks: ${locks.length} across ${tokenCount} token(s)</h3>
+        <p>Claimable: ${totalClaimable}</p>
+    `;
+    summary.classList.add('show');
+    
+    // Separate single and multi-token locks
+    const singleLocks = locks.filter(lock => lock.type === 'single');
+    const multiLocks = locks.filter(lock => lock.type === 'multi');
+    
+    // Group single locks by token
+    const locksByToken = {};
+    singleLocks.forEach(lock => {
+        if (!locksByToken[lock.token]) {
+            locksByToken[lock.token] = {
+                symbol: lock.tokenSymbol,
+                name: lock.tokenName,
+                decimals: lock.tokenDecimals,
+                locks: []
+            };
+        }
+        locksByToken[lock.token].locks.push(lock);
+    });
+    
+    // Group multi-token locks by multiLockIndex
+    const locksByMultiIndex = {};
+    multiLocks.forEach(lock => {
+        if (!locksByMultiIndex[lock.multiLockIndex]) {
+            locksByMultiIndex[lock.multiLockIndex] = {
+                unlockTime: lock.unlockTime,
+                tokens: []
+            };
+        }
+        locksByMultiIndex[lock.multiLockIndex].tokens.push(lock);
+    });
+    
+    let html = '';
+    
+    // Display single token locks grouped by token
+    Object.entries(locksByToken).forEach(([tokenAddress, tokenData]) => {
+        const tokenLocks = tokenData.locks.map(lock => {
+            const isClaimable = now >= lock.unlockTime && BigInt(lock.amount) > 0;
+            const status = isClaimable ? 'claimable' : 'locked';
+            const statusText = isClaimable ? 'Claimable' : 'Locked';
+            
+            return `
+                <div class="lock-card ${status}">
+                    <div class="lock-card-header">
+                        <span class="lock-index">Lock #${lock.tokenIndex}</span>
+                        <span class="lock-status ${status}">${statusText}</span>
+                    </div>
+                    <div class="lock-details">
+                        <div class="lock-detail">
+                            <span class="lock-detail-label">Amount</span>
+                            <span class="lock-detail-value">${formatTokenAmount(lock.amount, tokenData.decimals)} ${tokenData.symbol}</span>
+                        </div>
+                        <div class="lock-detail">
+                            <span class="lock-detail-label">Unlock Time</span>
+                            <span class="lock-detail-value">${formatDate(lock.unlockTime)}</span>
+                        </div>
+                    </div>
+                    ${isClaimable ? `<button class="btn btn-success" onclick='claimLock(${JSON.stringify(lock)})'>Claim Tokens</button>` : ''}
+                </div>
+            `;
+        }).join('');
+        
+        html += `
+            <div class="token-group">
+                <div class="token-group-header">
+                    <h3>${tokenData.name} (${tokenData.symbol})</h3>
+                    <span class="token-address">${shortenAddress(tokenAddress)}</span>
+                </div>
+                <div class="token-locks">
+                    ${tokenLocks}
+                </div>
+            </div>
+        `;
+    });
+    
+    // Display multi-token locks grouped by batch
+    Object.entries(locksByMultiIndex).forEach(([multiIndex, batchData]) => {
+        const isClaimable = now >= batchData.unlockTime;
+        const status = isClaimable ? 'claimable' : 'locked';
+        const statusText = isClaimable ? 'Claimable' : 'Locked';
+        
+        const tokensDisplay = batchData.tokens.map(lock => `
+            <div class="lock-detail">
+                <span class="lock-detail-label">${lock.tokenSymbol}</span>
+                <span class="lock-detail-value">${formatTokenAmount(lock.amount, lock.tokenDecimals)} ${lock.tokenSymbol}</span>
+            </div>
+        `).join('');
+        
+        // Use the first token's data for the claim button
+        const claimData = batchData.tokens[0];
+        
+        html += `
+            <div class="token-group">
+                <div class="token-group-header">
+                    <h3>Multi-Token Lock #${multiIndex}</h3>
+                    <span class="lock-status ${status}">${statusText}</span>
+                </div>
+                <div class="token-locks">
+                    <div class="lock-card ${status}">
+                        <div class="lock-card-header">
+                            <span class="lock-index">${batchData.tokens.length} Token(s)</span>
+                            <span class="lock-detail-value">${formatDate(batchData.unlockTime)}</span>
+                        </div>
+                        <div class="lock-details">
+                            ${tokensDisplay}
+                        </div>
+                        ${isClaimable ? `<button class="btn btn-success" onclick='claimLock(${JSON.stringify(claimData)})'>Claim All Tokens</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    list.innerHTML = html;
+}
+
+async function claimLock(lockData) {
+    if (!userAddress) {
+        alert('Please connect your wallet first');
+        return;
+    }
+    
+    try {
+        showTxStatus('Preparing claim transaction...');
+        
+        let response;
+        
+        if (lockData.type === 'multi') {
+            // Multi-token lock claim
+            response = await fetch(`/api/${currentChain}/encode/claim-multi-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lockIndex: lockData.multiLockIndex
+                })
+            });
+        } else {
+            // Single token lock claim
+            response = await fetch(`/api/${currentChain}/encode/claim`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: lockData.token,
+                    lockIndex: lockData.tokenIndex
+                })
+            });
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error);
+        }
+        
+        showTxStatus('Please confirm the transaction in your wallet...');
+        
+        const txHash = await window.ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [{
+                from: userAddress,
+                to: result.to,
+                data: result.data
+            }]
+        });
+        
+        showTxStatus('Transaction submitted! Waiting for confirmation...');
+        
+        await waitForTransaction(txHash);
+        
+        if (lockData.type === 'multi') {
+            showTxStatus('Multi-token lock claimed successfully!', 'success');
+        } else {
+            showTxStatus('Tokens claimed successfully!', 'success');
+        }
+        
+        // Refresh the locks view
+        viewLocks();
         
     } catch (error) {
         console.error('Claim failed:', error);

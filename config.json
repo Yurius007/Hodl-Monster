@@ -5,7 +5,7 @@
             "route": "base-sepolia",
             "chainId": 84532,
             "chainName": "Base Sepolia Testnet",
-            "deployment": "0x2fffd91E32169F34e548359E506637EBAb8B8386",
+            "deployment": "0xf5209eCD0dAC596f3a4d6fE44D617e1B1646293B",
             "testerc20": "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC",
             "rpc": "https://base-sepolia-rpc.publicnode.com",
             "blockExplorerUrl": "https://sepolia.basescan.org"
@@ -14,7 +14,7 @@
             "route": "ethereum-sepolia",
             "chainId": 11155111,
             "chainName": "Sepolia Testnet",
-            "deployment": "0x2fffd91E32169F34e548359E506637EBAb8B8386",
+            "deployment": "0x9e9fB5a84165f7f0Ab7aC283F2FCf095365Fa0a6",
             "testerc20": "0xBf4bb0a74f026F6309388205Af4D8cf66e4D3DCd",
             "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
             "blockExplorerUrl": "https://sepolia.etherscan.io"

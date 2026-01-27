@@ -5,9 +5,10 @@ A lightweight web application for locking ERC20 tokens with a time-based release
 ## Features
 
 - **Token Locking**: Lock any ERC20 token for a custom period
+- **Batch Lock**: Lock multiple different tokens in a single transaction
 - **Multi-Chain Support**: Switch between different chains via dropdown selector
-- **Lock Management**: View all your locks and their status (newest first)
-- **Easy Claims**: Claim tokens when unlock period expires
+- **Lock Management**: View all your locks with auto-refresh (grouped by batch)
+- **Easy Claims**: Claim tokens directly from the View Locks tab when unlocked
 - **Test Token Minting**: Mint test tokens directly from the UI
 - **Copy Addresses**: One-click copy for token addresses
 
@@ -109,7 +110,7 @@ Edit `config.json` to configure the blockchain network and contract:
    - Click copy icon to copy token address
    - Click "Mint Test Tokens" to receive test tokens in your wallet
 
-4. **Lock tokens:**
+4. **Lock single token:**
    - Go to "Lock Tokens" tab
    - Enter the ERC20 token address (auto-loads token info)
    - Enter the amount to lock (use MAX button for full balance)
@@ -118,17 +119,22 @@ Edit `config.json` to configure the blockchain network and contract:
    - Click "1. Approve Tokens" and confirm in wallet
    - Click "2. Lock Tokens" and confirm in wallet
 
-5. **View locks:**
-   - Go to "View Locks" tab
-   - Enter token address
-   - Click "View My Locks"
-   - See all your locks (newest first) with status, amounts, and unlock times
+5. **Lock multiple tokens (Batch Lock):**
+   - Go to "Batch Lock" tab
+   - Enter token addresses and amounts (click + to add more, up to 10 tokens)
+   - Use MAX button to set full balance for each token
+   - Select lock period (same for all tokens in batch)
+   - Optionally specify a beneficiary address
+   - Click "Approve All Tokens" and confirm in wallet
+   - Click "Lock All Tokens" and confirm in wallet
+   - All tokens will be locked together and claimed as a group
 
-6. **Claim tokens:**
-   - Go to "Claim Tokens" tab
-   - Enter token address
-   - Click "Check Claimable" to see ready-to-claim locks
-   - Click "Claim Lock #X" for individual locks when ready
+6. **View and claim locks:**
+   - Go to "View Locks" tab (auto-loads when opened)
+   - See all your locks grouped by batch (newest first)
+   - Single-token locks show individually
+   - Multi-token locks show all tokens in the batch together
+   - Click "Claim Tokens" button when locks are unlocked
 
 ## Project Structure
 
@@ -152,20 +158,11 @@ hodl/
     └── index.html       # Main HTML page
 ```
 
-## API Endpoints
+## API Documentation
 
-- `GET /` - Redirects to default chain route
-- `GET /<chain_route>` - Main page for specific chain
-- `GET /api/chains` - Get list of available chains (with deployments only)
-- `GET /api/<chain_route>/config` - Get chain configuration
-- `GET /api/<chain_route>/token-info/<token>` - Get ERC20 token information
-- `GET /api/<chain_route>/token-balance/<token>/<user>` - Get user's token balance
-- `GET /api/<chain_route>/locks/<user>/<token>` - Get user's locks for a token
-- `GET /api/<chain_route>/available/<user>/<token>` - Get claimable tokens
-- `POST /api/<chain_route>/encode/approve` - Encode approval transaction
-- `POST /api/<chain_route>/encode/lock` - Encode lock transaction
-- `POST /api/<chain_route>/encode/claim` - Encode claim transaction
-- `POST /api/<chain_route>/encode/mint` - Encode mint transaction for test tokens
+The application provides OpenAPI documentation for all available endpoints. Once the server is running, visit:
+- **Swagger UI**: `http://localhost:5000/api/docs` - Interactive API documentation
+- **OpenAPI Spec**: `http://localhost:5000/openapi.yaml` - Complete API specification
 
 ## Development
 

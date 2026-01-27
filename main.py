@@ -200,8 +200,8 @@ def get_user_locks(chain_route, address, token):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
-@app.route('/api/<chain_route>/available/<address>/<token>')
-def get_available_tokens(chain_route, address, token):
+@app.route('/api/<chain_route>/all-locks/<address>')
+def get_all_user_locks(chain_route, address):
     chain_key, chain_data = get_chain_data(chain_route)
     if not chain_data:
         return jsonify({'success': False, 'error': 'Chain not found'}), 404
@@ -211,33 +211,92 @@ def get_available_tokens(chain_route, address, token):
     
     try:
         user = Web3.to_checksum_address(address)
-        token_addr = Web3.to_checksum_address(token)
-        total, indexes = chain_data['contract'].functions.getAvailableTokens(user, token_addr).call()
         
-        return jsonify({
-            'success': True,
-            'total': str(total),
-            'claimableIndexes': list(indexes)
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-
-@app.route('/api/<chain_route>/total-locked/<address>/<token>')
-def get_total_locked(chain_route, address, token):
-    chain_key, chain_data = get_chain_data(chain_route)
-    if not chain_data:
-        return jsonify({'success': False, 'error': 'Chain not found'}), 404
-    
-    if not chain_data['contract']:
-        return jsonify({'success': False, 'error': 'Contract not deployed on this chain'}), 400
-    
-    try:
-        user = Web3.to_checksum_address(address)
-        token_addr = Web3.to_checksum_address(token)
-        total = chain_data['contract'].functions.getTotalLockedTokens(user, token_addr).call()
+        # Get single-token locks
+        user_tokens = chain_data['contract'].functions.getUserTokens(user).call()
+        all_locks = []
+        unique_tokens = set()
         
-        return jsonify({'success': True, 'total': str(total)})
+        for token in user_tokens:
+            try:
+                locks = chain_data['contract'].functions.getUserLocks(user, token).call()
+                
+                # Fetch token info
+                token_contract = chain_data['w3'].eth.contract(address=token, abi=ERC20_ABI)
+                try:
+                    symbol = token_contract.functions.symbol().call()
+                    decimals = token_contract.functions.decimals().call()
+                    name = token_contract.functions.name().call()
+                except:
+                    symbol = "UNKNOWN"
+                    decimals = 18
+                    name = "Unknown Token"
+                
+                unique_tokens.add(token)
+                
+                for i, lock in enumerate(locks):
+                    if lock[0] > 0:  # Only include non-empty locks
+                        all_locks.append({
+                            'type': 'single',
+                            'token': token,
+                            'tokenSymbol': symbol,
+                            'tokenName': name,
+                            'tokenDecimals': decimals,
+                            'tokenIndex': i,
+                            'amount': str(lock[0]),
+                            'unlockTime': lock[1]
+                        })
+            except Exception as e:
+                print(f"Error fetching locks for token {token}: {e}")
+                continue
+        
+        # Get multi-token locks
+        try:
+            multi_lock_count = chain_data['contract'].functions.getUserMultiTokenLocksCount(user).call()
+            
+            for lock_idx in range(multi_lock_count):
+                try:
+                    tokens_data, unlock_time = chain_data['contract'].functions.getMultiTokenLockDetails(user, lock_idx).call()
+                    
+                    # Process each token in this multi-token lock
+                    for token_amount in tokens_data:
+                        token_addr = token_amount[0]
+                        amount = token_amount[1]
+                        
+                        if amount > 0:
+                            # Fetch token info
+                            token_contract = chain_data['w3'].eth.contract(address=token_addr, abi=ERC20_ABI)
+                            try:
+                                symbol = token_contract.functions.symbol().call()
+                                decimals = token_contract.functions.decimals().call()
+                                name = token_contract.functions.name().call()
+                            except:
+                                symbol = "UNKNOWN"
+                                decimals = 18
+                                name = "Unknown Token"
+                            
+                            unique_tokens.add(token_addr)
+                            
+                            all_locks.append({
+                                'type': 'multi',
+                                'multiLockIndex': lock_idx,
+                                'token': token_addr,
+                                'tokenSymbol': symbol,
+                                'tokenName': name,
+                                'tokenDecimals': decimals,
+                                'amount': str(amount),
+                                'unlockTime': unlock_time
+                            })
+                except Exception as e:
+                    print(f"Error fetching multi-token lock {lock_idx}: {e}")
+                    continue
+        except Exception as e:
+            print(f"Error fetching multi-token locks: {e}")
+        
+        # Sort by unlock time
+        all_locks.sort(key=lambda x: x['unlockTime'])
+        
+        return jsonify({'success': True, 'locks': all_locks, 'tokenCount': len(unique_tokens)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
@@ -287,6 +346,108 @@ def encode_lock_tokens(chain_route):
         beneficiary = Web3.to_checksum_address(data['beneficiary'])
         
         tx_data = chain_data['contract'].functions.lockTokens(token, amount, lock_period, beneficiary)._encode_transaction_data()
+        contract_address = Web3.to_checksum_address(chain_data['contract_address'])
+        
+        return jsonify({
+            'success': True,
+            'data': tx_data,
+            'to': contract_address
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/<chain_route>/encode/multi-token-lock', methods=['POST'])
+def encode_multi_token_lock(chain_route):
+    chain_key, chain_data = get_chain_data(chain_route)
+    if not chain_data:
+        return jsonify({'success': False, 'error': 'Chain not found'}), 404
+    
+    if not chain_data['contract']:
+        return jsonify({'success': False, 'error': 'Contract not deployed on this chain'}), 400
+    
+    try:
+        data = request.json
+        token_addresses = [Web3.to_checksum_address(addr) for addr in data['tokenAddresses']]
+        amounts = [int(amt) for amt in data['amounts']]
+        lock_period = int(data['lockPeriod'])
+        beneficiary = Web3.to_checksum_address(data['beneficiary'])
+        
+        # Validate arrays
+        if len(token_addresses) != len(amounts):
+            return jsonify({'success': False, 'error': 'tokenAddresses and amounts arrays must have the same length'}), 400
+        
+        if len(token_addresses) == 0 or len(token_addresses) > 10:
+            return jsonify({'success': False, 'error': 'Must provide 1-10 tokens'}), 400
+        
+        tx_data = chain_data['contract'].functions.lockMultipleTokens(token_addresses, amounts, lock_period, beneficiary)._encode_transaction_data()
+        contract_address = Web3.to_checksum_address(chain_data['contract_address'])
+        
+        return jsonify({
+            'success': True,
+            'data': tx_data,
+            'to': contract_address,
+            'tokenCount': len(token_addresses)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/<chain_route>/multi-token-locks/<address>')
+def get_multi_token_locks(chain_route, address):
+    chain_key, chain_data = get_chain_data(chain_route)
+    if not chain_data:
+        return jsonify({'success': False, 'error': 'Chain not found'}), 404
+    
+    if not chain_data['contract']:
+        return jsonify({'success': False, 'error': 'Contract not deployed on this chain'}), 400
+    
+    try:
+        user = Web3.to_checksum_address(address)
+        lock_count = chain_data['contract'].functions.getUserMultiTokenLocksCount(user).call()
+        
+        locks = []
+        for i in range(lock_count):
+            try:
+                tokens, unlock_time = chain_data['contract'].functions.getMultiTokenLockDetails(user, i).call()
+                
+                if tokens:  # Only include non-empty locks
+                    formatted_tokens = []
+                    for token_amount in tokens:
+                        formatted_tokens.append({
+                            'token': token_amount[0],
+                            'amount': str(token_amount[1])
+                        })
+                    
+                    locks.append({
+                        'index': i,
+                        'tokens': formatted_tokens,
+                        'unlockTime': unlock_time,
+                        'tokenCount': len(formatted_tokens)
+                    })
+            except:
+                # Skip deleted/claimed locks
+                continue
+        
+        return jsonify({'success': True, 'locks': locks})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/<chain_route>/encode/claim-multi-token', methods=['POST'])
+def encode_claim_multi_tokens(chain_route):
+    chain_key, chain_data = get_chain_data(chain_route)
+    if not chain_data:
+        return jsonify({'success': False, 'error': 'Chain not found'}), 404
+    
+    if not chain_data['contract']:
+        return jsonify({'success': False, 'error': 'Contract not deployed on this chain'}), 400
+    
+    try:
+        data = request.json
+        lock_index = int(data['lockIndex'])
+        
+        tx_data = chain_data['contract'].functions.claimMultipleTokens(lock_index)._encode_transaction_data()
         contract_address = Web3.to_checksum_address(chain_data['contract_address'])
         
         return jsonify({

@@ -1,16 +1,17 @@
 # HodlMonster 🦖
 
-A lightweight web application for locking ERC20 tokens with a time-based release mechanism. Built with Flask and web3.py, HodlMonster provides a simple interface to lock tokens and claim them after a specified period.
+A lightweight web application for locking ERC20 tokens using **NFT-based** locks with a time-based release mechanism. Built with Flask and web3.py, HodlMonster provides a simple interface to lock tokens and claim them after a specified period.
 
 ## Features
 
-- **Token Locking**: Lock any ERC20 token for a custom period
-- **Batch Lock**: Lock multiple different tokens in a single transaction
-- **Multi-Chain Support**: Switch between different chains via dropdown selector
-- **Lock Management**: View all your locks with auto-refresh (grouped by batch)
-- **Easy Claims**: Claim tokens directly from the View Locks tab when unlocked
-- **Test Token Minting**: Mint test tokens directly from the UI
-- **Copy Addresses**: One-click copy for token addresses
+- **NFT-Based Locking**: Each lock is represented by an ERC-721 NFT, allowing for easy transfer and persistence.
+- **Batch Lock**: Lock multiple different tokens in a single transaction (all wrapped in one NFT).
+- **Optimized Performance**: Uses **Multicall3** for batching RPC requests, ensuring fast loading even with many locks.
+- **Multi-Chain Support**: Switch between different chains via dropdown selector.
+- **Lock Management**: View all your locks with auto-refresh (grouped by NFT).
+- **Easy Claims**: Claim tokens directly from the View Locks tab when unlocked (burns the NFT).
+- **Test Token Minting**: Mint test tokens directly from the UI.
+- **Copy Addresses**: One-click copy for token addresses.
 
 ## Prerequisites
 
@@ -68,7 +69,8 @@ Edit `config.json` to configure the blockchain network and contract:
          "route": "base-sepolia",
          "chainId": 84532,
          "chainName": "Base Sepolia Testnet",
-         "deployment": "0x2fffd91E32169F34e548359E506637EBAb8B8386",
+         "deployment": "0x244F47999cEBA2E81d63e220D57dcDA6892BbB9C",
+         "multicall3": "0xd8591bCb2BC47DAB1040176EdD82C77CAa551740",
          "testerc20": "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC",
          "rpc": "https://base-sepolia-rpc.publicnode.com",
          "blockExplorerUrl": "https://sepolia.basescan.org"
@@ -82,7 +84,8 @@ Edit `config.json` to configure the blockchain network and contract:
 - `route`: Internal route identifier for the chain
 - `chainId`: Chain ID (e.g., 1 for Ethereum Mainnet, 84532 for Base Sepolia)
 - `chainName`: Display name for the network
-- `deployment`: Your deployed HodlMonster contract address
+- `deployment`: Your deployed **HodlMonsterNFT** (UUPS Proxy) contract address
+- `multicall3`: (Optional) Address of Multicall3 contract for optimized batch fetching
 - `testerc20`: (Optional) Test token address for minting functionality
 - `rpc`: RPC endpoint URL
 - `blockExplorerUrl`: Block explorer URL for transaction verification
@@ -110,16 +113,16 @@ Edit `config.json` to configure the blockchain network and contract:
    - Click copy icon to copy token address
    - Click "Mint Test Tokens" to receive test tokens in your wallet
 
-4. **Lock single token:**
+5. **Lock single token:**
    - Go to "Lock Tokens" tab
    - Enter the ERC20 token address (auto-loads token info)
    - Enter the amount to lock (use MAX button for full balance)
    - Select lock period from dropdown (minutes, hours, days, weeks, months, years)
    - Optionally specify a beneficiary address (or click "Use My Address")
    - Click "1. Approve Tokens" and confirm in wallet
-   - Click "2. Lock Tokens" and confirm in wallet
+   - Click "2. Lock Tokens" and confirm in wallet (Mints an NFT to the beneficiary)
 
-5. **Lock multiple tokens (Batch Lock):**
+6. **Lock multiple tokens (Batch Lock):**
    - Go to "Batch Lock" tab
    - Enter token addresses and amounts (click + to add more, up to 10 tokens)
    - Use MAX button to set full balance for each token
@@ -127,14 +130,14 @@ Edit `config.json` to configure the blockchain network and contract:
    - Optionally specify a beneficiary address
    - Click "Approve All Tokens" and confirm in wallet
    - Click "Lock All Tokens" and confirm in wallet
-   - All tokens will be locked together and claimed as a group
+   - All tokens will be locked together in a single **Lock NFT**
 
-6. **View and claim locks:**
+7. **View and claim locks:**
    - Go to "View Locks" tab (auto-loads when opened)
-   - See all your locks grouped by batch (newest first)
+   - See all your locks grouped by NFT ID (newest first)
    - Single-token locks show individually
-   - Multi-token locks show all tokens in the batch together
-   - Click "Claim Tokens" button when locks are unlocked
+   - Multi-token locks show all tokens in the NFT together
+   - Click "Claim Tokens" button when locks are unlocked (Burns the NFT and returns tokens)
 
 ## Project Structure
 
@@ -144,11 +147,13 @@ hodl/
 ├── config.json          # Network configuration
 ├── pyproject.toml       # Python dependencies
 ├── contracts
-│   ├── HodlMonster.sol       # Smart contract source
-│   └── monstercoin.sol       # Test ERC20 Smart contract source
+│   ├── HodlMonsterNFT.sol    # NFT-based Lock Smart contract (UUPS Upgradeable)
+│   ├── Multicall3.sol        # Multicall3 contract for batching
+│   └── monstercoin.sol       # Test ERC20 Smart contract
 ├── ABIs/
 │   ├── ERC20_ABI.json              # Standard ERC20 ABI
-│   ├── HODLMONSTER_ABI.json        # HodlMonster contract ABI
+│   ├── HODLMONSTERNFT_ABI.json     # HodlMonsterNFT contract ABI
+│   ├── MULTICALL3_ABI.json         # Multicall3 ABI
 │   └── HODLMONSTERTOKEN_ABI.json   # Test token ABI (with mint function)
 ├── static/
 │   ├── app.js           # Frontend JavaScript
@@ -170,6 +175,7 @@ The application uses:
 - **Backend**: Flask 3.0+, web3.py 7.0+
 - **Frontend**: Vanilla JavaScript
 - **Blockchain**: Ethereum JSON-RPC, MetaMask provider
+- **Smart Contracts**: Solidity 0.8.31, OpenZeppelin (ERC721, UUPS Upgradeable)
 
 ## Supported Networks
 

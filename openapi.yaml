@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Hodl Monster API
-  description: API for managing token locks on various blockchain networks
-  version: 1.0.0
+  description: API for managing NFT-based token locks on various blockchain networks
+  version: 2.0.0
   contact:
     name: Hodl Monster Team
 
@@ -18,7 +18,7 @@ tags:
   - name: Tokens
     description: Token information and balances
   - name: Locks
-    description: Token lock management
+    description: NFT Lock management
   - name: Transactions
     description: Transaction encoding endpoints
 
@@ -98,16 +98,15 @@ paths:
                   blockExplorerUrl:
                     type: string
                     example: "https://sepolia.basescan.org"
+                  isNFT:
+                    type: boolean
+                    example: true
                   abi:
                     type: array
                     items:
                       type: object
         '404':
           description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
   /api/{chain}/token-info/{token}:
     get:
@@ -152,16 +151,8 @@ paths:
                     example: "Tether USD"
         '400':
           description: Invalid token address or contract error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '404':
           description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
   /api/{chain}/token-balance/{token}/{address}:
     get:
@@ -207,23 +198,15 @@ paths:
                     example: "1000000000000000000"
         '400':
           description: Invalid address or token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '404':
           description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
-  /api/{chain}/locks/{address}/{token}:
-    get:
-      summary: Get user locks for specific token
-      description: Returns all token locks for a specific user and token
+  /api/{chain}/tokens-batch:
+    post:
+      summary: Batch fetch token info and balances
+      description: Fetch details and balances for multiple tokens in a single request (optimized with Multicall3)
       tags:
-        - Locks
+        - Tokens
       parameters:
         - name: chain
           in: path
@@ -232,23 +215,25 @@ paths:
           schema:
             type: string
             example: "base-sepolia"
-        - name: address
-          in: path
-          required: true
-          description: User wallet address
-          schema:
-            type: string
-            example: "0x0000000000000000000000000000000000000000"
-        - name: token
-          in: path
-          required: true
-          description: Token contract address
-          schema:
-            type: string
-            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tokens:
+                  type: array
+                  items:
+                    type: string
+                  example: ["0xToken1...", "0xToken2..."]
+                user:
+                  type: string
+                  description: Optional user address to fetch balances for
+                  example: "0xUser..."
       responses:
         '200':
-          description: Successfully retrieved user locks
+          description: Successfully retrieved batch token info
           content:
             application/json:
               schema:
@@ -257,40 +242,25 @@ paths:
                   success:
                     type: boolean
                     example: true
-                  locks:
-                    type: array
-                    items:
+                  tokens:
+                    type: object
+                    additionalProperties:
                       type: object
                       properties:
-                        index:
-                          type: integer
-                          example: 0
-                        amount:
+                        symbol:
                           type: string
-                          example: "1000000000000000000"
-                        unlockTime:
+                        decimals:
                           type: integer
-                          example: 1735689600
-                        token:
+                        name:
                           type: string
-                          example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-        '400':
-          description: Contract not deployed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                        balance:
+                          type: string
+                          description: Balance in wei (if user provided)
 
   /api/{chain}/all-locks/{address}:
     get:
-      summary: Get all user locks
-      description: Returns all token locks for a user across all tokens
+      summary: Get all user locks (NFTs)
+      description: Returns all NFT-based locks for a user (optimized with Multicall3)
       tags:
         - Locks
       parameters:
@@ -319,162 +289,88 @@ paths:
                   success:
                     type: boolean
                     example: true
+                  tokenCount:
+                    type: integer
+                    example: 3
                   locks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tokenId:
+                          type: integer
+                          example: 1
+                        unlockTime:
+                          type: integer
+                          example: 1735689600
+                        tokenCount:
+                          type: integer
+                          example: 1
+                        tokens:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              token:
+                                type: string
+                              tokenSymbol:
+                                type: string
+                              tokenName:
+                                type: string
+                              tokenDecimals:
+                                type: integer
+                              amount:
+                                type: string
+        '400':
+          description: Contract not deployed or invalid parameters
+        '404':
+          description: Chain not found
+
+  /api/{chain}/lock/{token_id}:
+    get:
+      summary: Get lock details
+      description: Returns details for a specific Lock NFT
+      tags:
+        - Locks
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved lock details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  tokenId:
+                    type: integer
+                  owner:
+                    type: string
+                  unlockTime:
+                    type: integer
+                  claimed:
+                    type: boolean
+                  tokens:
                     type: array
                     items:
                       type: object
                       properties:
                         token:
                           type: string
-                          example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-                        tokenSymbol:
-                          type: string
-                          example: "TEST"
-                        tokenName:
-                          type: string
-                          example: "Test Token"
-                        tokenDecimals:
-                          type: integer
-                          example: 18
-                        tokenIndex:
-                          type: integer
-                          example: 0
                         amount:
                           type: string
-                          example: "1000000000000000000"
-                        unlockTime:
-                          type: integer
-                          example: 1735689600
-                  tokenCount:
-                    type: integer
-                    example: 3
-        '400':
-          description: Contract not deployed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /api/{chain}/available/{address}/{token}:
-    get:
-      summary: Get available tokens
-      description: Returns the total amount of claimable tokens and their lock indexes
-      tags:
-        - Locks
-      parameters:
-        - name: chain
-          in: path
-          required: true
-          description: Chain route identifier
-          schema:
-            type: string
-            example: "base-sepolia"
-        - name: address
-          in: path
-          required: true
-          description: User wallet address
-          schema:
-            type: string
-            example: "0x0000000000000000000000000000000000000000"
-        - name: token
-          in: path
-          required: true
-          description: Token contract address
-          schema:
-            type: string
-            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-      responses:
-        '200':
-          description: Successfully retrieved available tokens
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  total:
-                    type: string
-                    example: "5000000000000000000"
-                  claimableIndexes:
-                    type: array
-                    items:
-                      type: integer
-                    example: [0, 2, 5]
-        '400':
-          description: Contract not deployed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /api/{chain}/total-locked/{address}/{token}:
-    get:
-      summary: Get total locked tokens
-      description: Returns the total amount of locked tokens for a user
-      tags:
-        - Locks
-      parameters:
-        - name: chain
-          in: path
-          required: true
-          description: Chain route identifier
-          schema:
-            type: string
-            example: "base-sepolia"
-        - name: address
-          in: path
-          required: true
-          description: User wallet address
-          schema:
-            type: string
-            example: "0x0000000000000000000000000000000000000000"
-        - name: token
-          in: path
-          required: true
-          description: Token contract address
-          schema:
-            type: string
-            example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-      responses:
-        '200':
-          description: Successfully retrieved total locked tokens
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  total:
-                    type: string
-                    example: "10000000000000000000"
-        '400':
-          description: Contract not deployed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
   /api/{chain}/encode/approve:
     post:
@@ -527,23 +423,11 @@ paths:
                     type: string
                     description: Target contract address
                     example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-        '400':
-          description: Invalid parameters or encoding error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
   /api/{chain}/encode/lock:
     post:
       summary: Encode lock tokens transaction
-      description: Generates encoded transaction data for locking tokens
+      description: Generates encoded transaction data for locking tokens (supports single or multi-token)
       tags:
         - Transactions
       parameters:
@@ -561,19 +445,25 @@ paths:
             schema:
               type: object
               required:
-                - token
-                - amount
                 - lockPeriod
                 - beneficiary
               properties:
                 token:
                   type: string
-                  description: Token contract address
-                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
+                  description: Token contract address (Single lock)
                 amount:
                   type: string
-                  description: Amount to lock (in wei)
-                  example: "1000000000000000000"
+                  description: Amount to lock (Single lock)
+                tokenAddresses:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of token addresses (Multi-lock)
+                amounts:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of amounts (Multi-lock)
                 lockPeriod:
                   type: integer
                   description: Lock period in seconds
@@ -596,114 +486,17 @@ paths:
                   data:
                     type: string
                     description: Encoded transaction data
-                    example: "0x1a2b3c4d..."
                   to:
                     type: string
                     description: Target contract address
-                    example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
-        '400':
-          description: Contract not deployed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /api/{chain}/encode/batch-lock:
-    post:
-      summary: Encode batch lock tokens transaction
-      description: Generates encoded transaction data for locking multiple amounts with different lock periods in a single transaction (max 10 locks)
-      tags:
-        - Transactions
-      parameters:
-        - name: chain
-          in: path
-          required: true
-          description: Chain route identifier
-          schema:
-            type: string
-            example: "base-sepolia"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - token
-                - amounts
-                - lockPeriods
-                - beneficiary
-              properties:
-                token:
-                  type: string
-                  description: Token contract address
-                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-                amounts:
-                  type: array
-                  description: Array of token amounts to lock (in wei)
-                  items:
-                    type: string
-                  example: ["1000000000000000000", "2000000000000000000", "3000000000000000000"]
-                  minItems: 1
-                  maxItems: 10
-                lockPeriods:
-                  type: array
-                  description: Array of lock periods in seconds (must match amounts array length)
-                  items:
+                  tokenCount:
                     type: integer
-                  example: [86400, 172800, 259200]
-                  minItems: 1
-                  maxItems: 10
-                beneficiary:
-                  type: string
-                  description: Beneficiary wallet address
-                  example: "0x0000000000000000000000000000000000000000"
-      responses:
-        '200':
-          description: Successfully encoded batch lock transaction
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: string
-                    description: Encoded transaction data
-                    example: "0x1a2b3c4d..."
-                  to:
-                    type: string
-                    description: Target contract address
-                    example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
-                  totalAmount:
-                    type: string
-                    description: Total amount of tokens to be locked (sum of all amounts)
-                    example: "6000000000000000000"
-        '400':
-          description: Contract not deployed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                    description: Number of tokens being locked
 
   /api/{chain}/encode/claim:
     post:
       summary: Encode claim tokens transaction
-      description: Generates encoded transaction data for claiming unlocked tokens
+      description: Generates encoded transaction data for claiming an NFT lock
       tags:
         - Transactions
       parameters:
@@ -721,17 +514,12 @@ paths:
             schema:
               type: object
               required:
-                - token
-                - lockIndex
+                - tokenId
               properties:
-                token:
-                  type: string
-                  description: Token contract address
-                  example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-                lockIndex:
+                tokenId:
                   type: integer
-                  description: Index of the lock to claim
-                  example: 0
+                  description: ID of the Lock NFT to claim
+                  example: 1
       responses:
         '200':
           description: Successfully encoded claim transaction
@@ -746,23 +534,9 @@ paths:
                   data:
                     type: string
                     description: Encoded transaction data
-                    example: "0x5e6f7a8b..."
                   to:
                     type: string
                     description: Target contract address
-                    example: "0x2fffd91E32169F34e548359E506637EBAb8B8386"
-        '400':
-          description: Contract not deployed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
   /api/{chain}/encode/mint:
     post:
@@ -798,30 +572,6 @@ paths:
             application/json:
               schema:
                 type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: string
-                    description: Encoded transaction data
-                    example: "0x1249c58b"
-                  to:
-                    type: string
-                    description: Target contract address
-                    example: "0x962d47612fA2982bfE4074D3C8B30012E72C6EdC"
-        '400':
-          description: Invalid parameters or encoding error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Chain not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
@@ -833,4 +583,4 @@ components:
           example: false
         error:
           type: string
-          example: "Error message"
+          example: "Error message details"

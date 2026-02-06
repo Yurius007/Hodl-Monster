@@ -1,6 +1,6 @@
 # HodlMonster 🦖
 
-A lightweight web application for locking ERC20 tokens using **NFT-based** locks with a time-based release mechanism. Built with Flask and web3.py, HodlMonster provides a simple interface to lock tokens and claim them after a specified period.
+A lightweight dApp for locking ERC20 tokens using **NFT-based** locks with a time-based release mechanism. Built with Flask and web3.py, HodlMonster provides a simple interface to lock tokens and claim them after a specified period.
 
 ## Features
 
